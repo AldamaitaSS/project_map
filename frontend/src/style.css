@@ -1,0 +1,166 @@
+body {
+  margin: 0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #E5EEF1;
+}
+
+.layout {
+  display: flex;
+  height: 100vh;
+}
+
+.sidebar {
+  width: 220px;
+  background-color: #fff;
+  padding: 20px;
+  box-sizing: border-box;
+  border-right: 1px solid #CCD2DE;
+  padding-top: 15px;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar h2 {
+  color: #17677E;
+  margin-bottom: 40px;
+  margin: 0 0 40px 0;
+}
+
+.sidebar-menu {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.sidebar-menu li {
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 5px;
+  transition: background 0.2s;
+  color: #17677E;
+}
+
+.sidebar-menu li.active,
+.sidebar-menu li:hover {
+  background-color: #CCD2DE;
+  color: #17677E;
+  font-weight: bold;
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.header {
+  background-color: #FFFFFF;
+  padding: 15px 20px;
+  display: flex;
+  justify-content: flex-end; /* Bikin isi header ke kanan */
+  align-items: center;
+  background: #fff;
+  padding: 10px 20px;
+  border-bottom: 1px solid #CCD2DE;
+
+}
+
+.header h1 {
+  color: #17677E;
+  font-size: 20px;
+  margin: 0;
+}
+
+.logout-icon {
+  font-size: 20px;
+  color: #17677E !important; 
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+
+.logout-icon:hover {
+  color: #DC2626;
+}
+
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 20px;
+  background: #E5EEF1;
+  gap: 10px;
+}
+
+.main > h1 {
+  margin: 20px;
+  padding-left: 5px; 
+  color: #17677E;
+}
+
+.toolbar-left {
+  margin: 0;
+  color: #17677E;
+}
+
+.toolbar-right {
+  margin-left: auto; 
+  display: flex;
+  gap: 10px;
+}
+
+input[type="text"] {
+  padding: 10px 18px;
+  border: 1px solid #CCD2DE;
+  border-radius: 4px;
+  outline: none;
+}
+
+.btn-icon {
+  background: white;
+  border: 1px solid #CCD2DE;
+  padding: 10px 18px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.btn-danger {
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.btn-success {
+  background: #28a745;
+  color: white;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.map-container {
+  flex: 1;
+  padding: 10px 20px;
+}
+
+#map {
+  height: 100%;
+  width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.footer {
+  background-color: #FFFFFF;
+  text-align: center;
+  padding: 8px;
+  font-size: 14px;
+  color: #17677E;
+  border-top: 1px solid #CCD2DE;
+}
