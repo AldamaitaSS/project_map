@@ -8,6 +8,8 @@ class project {
     public $id_placemark;
     public $id_polygon;
     public $nama_project;
+    public $created_at;
+    public $updated_at;
     
     public function __construct($db) {
         $this->conn = $db;
@@ -32,9 +34,9 @@ class project {
     }
     
     public function read($id_user = null) {
-        $query = "SELECT p.*, u.nama as nama_user 
-                  FROM " . $this->table_name . " p
-                  LEFT JOIN m_user u ON p.id_user = u.id_user";
+        $query = "SELECT p.*, u.username, u.nama as nama_user
+                FROM " . $this->table_name . " p
+                LEFT JOIN m_user u ON p.id_user = u.id_user";
         
         if($id_user) {
             $query .= " WHERE p.id_user = :id_user";

@@ -1,7 +1,13 @@
 import { createApp } from 'vue'
-import './style.css'
 import App from './App.vue'
+import router from './router'
 import '@fortawesome/fontawesome-free/css/all.min.css';
 
+// Buat app instance
+const app = createApp(App)
 
-createApp(App).mount('#app')
+// Use router
+app.use(router)
+
+// Mount ke DOM
+app.mount('#app')

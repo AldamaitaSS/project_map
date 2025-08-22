@@ -1,9 +1,11 @@
 <?php
-header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-echo json_encode([
-    'status' => 'Server berjalan!',
-    'waktu' => date('Y-m-d H:i:s'),
-    'path' => __FILE__
-]);
-?>
+require_once(__DIR__ . "/../config/database.php");
+
+$db = new Database();
+$conn = $db->getConnection();
+
+if ($conn) {
+    echo "✅ Connection success!";
+} else {
+    echo "❌ Connection failed!";
+}

@@ -1,78 +1,126 @@
 <?php
-include_once '../../utils/cors.php';
-include_once '../../config/database.php';
-include_once '../../models/Project.php';
-include_once '../../models/Placemark.php';
-include_once '../../models/Polygon.php';
-include_once '../../utils/response.php';
+
+error_reporting(E_ERROR | E_PARSE);
+ini_set('display_errors', 0);
+
+header("Access-Control-Allow-Origin: *");
+header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
+header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
+header("Access-Control-Max-Age: 3600");
+header("Content-Type: application/json; charset=UTF-8");
+
+if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
+    http_response_code(200);
+    exit();
+}
+
+
+$host = "localhost";
+$db_name = "db_map";
+$username = "postgres";
+$password = "root";
+$port = "5433";
+
+function sendResponse($status, $message, $data = null, $http_code = 200) {
+    http_response_code($http_code);
+    $response = array('status' => $status, 'message' => $message);
+    if ($data !== null) $response['data'] = $data;
+    echo json_encode($response);
+    exit();
+}
+
 
 if($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    Response::methodNotAllowed();
+    sendResponse('error', 'Method not allowed', null, 405);
 }
-
-$database = new Database();
-$db = $database->getConnection();
-
-$project = new Project($db);
-$placemark = new Placemark($db);
-$polygon = new Polygon($db);
-
-$data = json_decode(file_get_contents("php://input"));
 
 try {
-    $db->beginTransaction();
-    
-    // Simpan project
-    $project->id_user = $data->id_user ?? 1; // Default user ID 1 jika tidak ada
-    $project->nama_project = $data->nama_project ?? "Project " . date('Y-m-d H:i:s');
-    
-    if(!$project->create()) {
-        throw new Exception("Gagal menyimpan project");
+    $pdo = new PDO("pgsql:host=$host;port=$port;dbname=$db_name", $username, $password);
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+    $input = file_get_contents("php://input");
+    $data = json_decode($input);
+
+    if (!$data) {
+        sendResponse('error', 'Invalid JSON data', null, 400);
     }
-    
-    $placemark_id = null;
+
+    // ✅ Validasi id_project wajib ada
+    if (!isset($data->id_project) || empty($data->id_project)) {
+        sendResponse('error', 'ID Project is required', null, 400);
+    }
+
+    $id_project = $data->id_project;
+
+    // ✅ Ambil id_user dari database
+    $stmt = $pdo->prepare("SELECT id_user FROM project WHERE id_project = ?");
+    $stmt->execute([$id_project]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$row) {
+        sendResponse('error', 'Project not found', null, 404);
+    }
+
+    $pdo->beginTransaction();
+
+    $nama_project = isset($data->name) ? $data->name : "Project " . date('Y-m-d H:i:s');
+    $deskripsi = isset($data->description) ? $data->description : "Auto generated project";
+
+    // Simpan placemarks
+    $placemark_ids = [];
+    if (!empty($data->placemarks) && is_array($data->placemarks)) {
+        foreach($data->placemarks as $placemark) {
+            $stmt = $pdo->prepare("INSERT INTO placemark (nama_placemark, deskripsi, latitude, longitude) 
+                                   VALUES (?, ?, ?, ?) RETURNING id_placemark");
+            $stmt->execute([
+                "Marker " . date('Y-m-d H:i:s'),
+                "Auto generated placemark",
+                $placemark->lat,
+                $placemark->lng
+            ]);
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            $placemark_ids[] = $result['id_placemark'];
+        }
+    }
+
+    // Simpan polygon
     $polygon_id = null;
-    
-    // Simpan placemarks jika ada
-    if(!empty($data->placemarks)) {
-        $placemarks_data = array();
-        foreach($data->placemarks as $p) {
-            $placemarks_data[] = array(
-                'nama_placemark' => 'Marker ' . count($placemarks_data) + 1,
-                'deskripsi' => 'Auto generated marker',
-                'latitude' => $p->lat,
-                'longitude' => $p->lng
-            );
-        }
-        
-        if(!$placemark->createMultiple($placemarks_data)) {
-            throw new Exception("Gagal menyimpan placemarks");
-        }
+    if (!empty($data->polygon) && is_array($data->polygon)) {
+        $stmt = $pdo->prepare("INSERT INTO polygon (nama_polygon, deskripsi, coordinate) 
+                               VALUES (?, ?, ?) RETURNING id_polygon");
+        $stmt->execute([
+            "Polygon " . date('Y-m-d H:i:s'),
+            "Auto generated polygon",
+            json_encode($data->polygon)
+        ]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        $polygon_id = $result['id_polygon'];
     }
-    
-    // Simpan polygon jika ada
-    if(!empty($data->polygon)) {
-        $polygon->nama_polygon = "Polygon " . date('Y-m-d H:i:s');
-        $polygon->deskripsi = "Auto generated polygon";
-        $polygon->coordinate = json_encode($data->polygon);
-        
-        if(!$polygon->create()) {
-            throw new Exception("Gagal menyimpan polygon");
-        }
-        
-        $polygon_id = $polygon->id_polygon;
-    }
-    
-    // Update project dengan ID placemark dan polygon
-    $project->id_placemark = $placemark_id;
-    $project->id_polygon = $polygon_id;
-    $project->update();
-    
-    $db->commit();
-    Response::success(array("id_project" => $project->id_project), "Project berhasil disimpan");
-    
+
+    // Update project (bukan insert baru)
+    $first_placemark_id = !empty($placemark_ids) ? $placemark_ids[0] : null;
+
+    $stmt = $pdo->prepare("UPDATE project 
+                           SET id_placemark = ?, id_polygon = ?, nama_project = ?, deskripsi = ?, updated_at = NOW() 
+                           WHERE id_project = ? RETURNING id_project");
+    $stmt->execute([$first_placemark_id, $polygon_id, $nama_project, $deskripsi, $id_project]);
+
+    $pdo->commit();
+
+    sendResponse('success', 'Project berhasil disimpan', array(
+        "id_project" => $id_project,
+        "placemarks_count" => count($placemark_ids),
+        "has_polygon" => $polygon_id !== null,
+        "placemark_ids" => $placemark_ids,
+        "polygon_id" => $polygon_id
+    ));
+
+} catch(PDOException $e) {
+    if (isset($pdo)) $pdo->rollback();
+    error_log("Database error in save_project: " . $e->getMessage());
+    sendResponse('error', 'Database error: ' . $e->getMessage(), null, 500);
 } catch(Exception $e) {
-    $db->rollback();
-    Response::error("Error: " . $e->getMessage());
+    if (isset($pdo)) $pdo->rollback();
+    error_log("General error in save_project: " . $e->getMessage());
+    sendResponse('error', 'Error: ' . $e->getMessage(), null, 500);
 }
-?>

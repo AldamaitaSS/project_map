@@ -1,15 +1,12 @@
 <template>
-  <div class="layout">
-    <Sidebar />
-    <Dashboard />
+  <div id="app">
+    <!-- Ini tempat Vue Router me-render komponen sesuai URL -->
+    <router-view :key="$route.fullPath"></router-view>
   </div>
 </template>
 
 <script>
-import Sidebar from './components/Sidebar.vue'
-import Dashboard from './components/Dashboard.vue'
-
 export default {
-  components: { Sidebar, Dashboard }
-}
+  name: "App",
+};
 </script>
