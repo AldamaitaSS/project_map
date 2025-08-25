@@ -1,31 +1,114 @@
 <template>
 <div class="project-container" id="ProjectPage">
   <div class="sidebar">
-      <div class="sidebar-header">
-        <div class="logo">
-          <i class="fas fa-network-wired"></i>
-          <span class="net">NET</span><span class="map">MAP</span>
+    <div class="sidebar-menu">
+      <!-- Project Info -->
+      <div class="project-info">
+        <h3>{{ currentProject ? currentProject.nama_project : 'Current Project' }}</h3>
+        <p class="project-id">ID: {{ currentProject ? currentProject.id_project : 'N/A' }}</p>
+      </div>
+
+      <!-- Placemarks Section -->
+      <div class="sidebar-section">
+        <div class="section-header">
+          <h4><i class="fas fa-map-marker-alt"></i> Placemarks ({{ placemarks.length }})</h4>
+          <button class="btn-toggle" @click="toggleSection('placemarks')" :class="{ active: showPlacemarks }">
+            <i class="fas fa-chevron-down"></i>
+          </button>
+        </div>
+        
+        <div v-if="showPlacemarks" class="section-content">
+          <div v-if="placemarks.length === 0" class="empty-message">
+            <i class="fas fa-map-marker-alt"></i>
+            <p>No placemarks yet</p>
+          </div>
+          
+          <div v-for="(placemark, index) in placemarks" :key="index" class="sidebar-item placemark-item">
+            <div class="item-info">
+              <div class="item-icon">
+                <i class="fas fa-map-marker-alt"></i>
+              </div>
+              <div class="item-details">
+                <h5>Placemark {{ index + 1 }}</h5>
+                <p class="coordinates">{{ placemark.lat.toFixed(6) }}, {{ placemark.lng.toFixed(6) }}</p>
+                <p class="address" v-if="placemark.address">{{ placemark.address }}</p>
+              </div>
+            </div>
+            <div class="item-actions">
+              <button @click="focusOnPlacemark(index)" class="btn-action btn-focus" title="Focus on map">
+                <i class="fas fa-eye"></i>
+              </button>
+              <button @click="editPlacemark(index)" class="btn-action btn-edit" title="Edit">
+                <i class="fas fa-edit"></i>
+              </button>
+              <button @click="deletePlacemark(index)" class="btn-action btn-delete" title="Delete">
+                <i class="fas fa-trash"></i>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
-      <div class="sidebar-menu">
-        <button 
-          class="menu-item" 
-          :class="{ active: $route.name === 'Dashboard' }"
-          @click="$router.push('/dashboard')">
-          <i class="fas fa-home"></i> Dashboard
-        </button>
 
-        <button 
-          class="menu-item" 
-          :class="{ active: $route.name === 'Project' }"
-          @click="$router.push('/project')">
-          <i class="fas fa-project-diagram"></i> Projects
+      <!-- Polygons Section -->
+      <div class="sidebar-section">
+        <div class="section-header">
+          <h4><i class="fas fa-project-diagram"></i> Polygons ({{ polygon ? 1 : 0 }})</h4>
+          <button class="btn-toggle" @click="toggleSection('polygons')" :class="{ active: showPolygons }">
+            <i class="fas fa-chevron-down"></i>
+          </button>
+        </div>
+        
+        <div v-if="showPolygons" class="section-content">
+          <div v-if="!polygon" class="empty-message">
+            <i class="fas fa-project-diagram"></i>
+            <p>No polygon yet</p>
+          </div>
+          
+          <div v-if="polygon" class="sidebar-item polygon-item">
+            <div class="item-info">
+              <div class="item-icon">
+                <i class="fas fa-project-diagram"></i>
+              </div>
+              <div class="item-details">
+                <h5>Main Polygon</h5>
+                <p class="coordinates">{{ polygonPath.length }} points</p>
+                <p class="area" v-if="polygonArea">Area: {{ polygonArea }} m²</p>
+              </div>
+            </div>
+            <div class="item-actions">
+              <button @click="focusOnPolygon()" class="btn-action btn-focus" title="Focus on map">
+                <i class="fas fa-eye"></i>
+              </button>
+              <button @click="editPolygon()" class="btn-action btn-edit" title="Edit">
+                <i class="fas fa-edit"></i>
+              </button>
+              <button @click="deletePolygon()" class="btn-action btn-delete" title="Delete">
+                <i class="fas fa-trash"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Project Actions -->
+      <div class="sidebar-actions">
+        <button @click="loadProjectData()" class="btn-refresh">
+          <i class="fas fa-sync-alt"></i> Refresh Data
+        </button>
+        <button @click="exportProjectData()" class="btn-export">
+          <i class="fas fa-download"></i> Export Project
         </button>
       </div>
     </div>
+  </div>
+  
   <div class="main">
     <!-- Header -->
     <div class="header">
+      <div class="logo">
+          <i class="fas fa-network-wired"></i>
+          <span class="net">NET</span><span class="map">MAP</span>
+        </div>
       <i class="fas fa-sign-out-alt logout-icon" @click="logout"></i>
     </div>
 
@@ -122,7 +205,12 @@ export default {
       showImportDialog: false,
       loading: false,
       loadingMessage: '',
-      currentUser: null
+      currentUser: null,
+
+      // Sidebar states
+      showPlacemarks: true,
+      showPolygons: true,
+      polygonArea: null
     };
   },
   methods: {
@@ -768,6 +856,240 @@ export default {
           alert("Lokasi tidak ditemukan: " + status);
         }
       });
+    },
+
+    // =============== SIDEBAR METHODS ===============
+    
+    toggleSection(section) {
+      if (section === 'placemarks') {
+        this.showPlacemarks = !this.showPlacemarks;
+      } else if (section === 'polygons') {
+        this.showPolygons = !this.showPolygons;
+      }
+    },
+
+    // Load project data and populate sidebar
+    async loadProjectData() {
+      const projectId = this.$route.params.id || (this.currentProject ? this.currentProject.id_project : null);
+      
+      if (!projectId) {
+        console.log('No project ID available');
+        return;
+      }
+
+      this.loadingMessage = 'Loading project data...';
+      
+      try {
+        // Load placemarks for this project
+        const placemarkResult = await this.apiCall(`/backend/api/placemark/read.php?project_id=${projectId}`);
+        if (placemarkResult.success && placemarkResult.data) {
+          // Clear existing markers
+          this.markers.forEach(marker => marker.setMap(null));
+          this.markers = [];
+          this.placemarks = [];
+          
+          // Add placemarks to map and list
+          placemarkResult.data.forEach(placemark => {
+            this.addPlacemarkToSidebar(placemark);
+          });
+        }
+
+        // Load polygon for this project
+        const polygonResult = await this.apiCall(`/backend/api/polygon/read.php?project_id=${projectId}`);
+        if (polygonResult.success && polygonResult.data && polygonResult.data.length > 0) {
+          // Clear existing polygon
+          this.clearPolygon();
+          
+          // Load first polygon (assuming one polygon per project)
+          const polygonData = polygonResult.data[0];
+          if (polygonData.coordinates) {
+            this.loadPolygonToMap(JSON.parse(polygonData.coordinates));
+            this.calculatePolygonArea();
+          }
+        }
+
+        console.log('Project data loaded successfully');
+      } catch (error) {
+        console.error('Error loading project data:', error);
+      }
+    },
+
+    addPlacemarkToSidebar(placemarkData) {
+      const lat = parseFloat(placemarkData.lat);
+      const lng = parseFloat(placemarkData.lng);
+      
+      // Add to placemarks array
+      this.placemarks.push({
+        lat: lat,
+        lng: lng,
+        name: placemarkData.name || `Placemark ${this.placemarks.length + 1}`,
+        address: placemarkData.description || '',
+        id: placemarkData.id
+      });
+      
+      // Add marker to map
+      this.addMarkerToMap(lat, lng, false);
+      
+      // Get address if not provided
+      if (!placemarkData.description) {
+        this.getAddressForPlacemark(this.placemarks.length - 1, lat, lng);
+      }
+    },
+
+    async getAddressForPlacemark(index, lat, lng) {
+      const geocoder = new google.maps.Geocoder();
+      geocoder.geocode({ location: { lat, lng } }, (results, status) => {
+        if (status === "OK" && results[0]) {
+          this.placemarks[index].address = results[0].formatted_address;
+        }
+      });
+    },
+
+    // Focus map on specific placemark
+    focusOnPlacemark(index) {
+      const placemark = this.placemarks[index];
+      if (placemark && this.map) {
+        this.map.setCenter({ lat: placemark.lat, lng: placemark.lng });
+        this.map.setZoom(18);
+        
+        // Animate marker
+        if (this.markers[index]) {
+          this.markers[index].setAnimation(google.maps.Animation.BOUNCE);
+          setTimeout(() => {
+            this.markers[index].setAnimation(null);
+          }, 1500);
+        }
+      }
+    },
+
+    // Focus map on polygon
+    focusOnPolygon() {
+      if (this.polygon && this.map) {
+        const bounds = new google.maps.LatLngBounds();
+        this.polygonPath.forEach(point => {
+          bounds.extend(new google.maps.LatLng(point.lat, point.lng));
+        });
+        this.map.fitBounds(bounds);
+      }
+    },
+
+    // Edit placemark
+    editPlacemark(index) {
+      const placemark = this.placemarks[index];
+      const newName = prompt('Edit placemark name:', placemark.name || `Placemark ${index + 1}`);
+      
+      if (newName !== null) {
+        this.placemarks[index].name = newName;
+        // Update in backend if needed
+        // this.updatePlacemarkInBackend(placemark.id, { name: newName });
+      }
+    },
+
+    // Delete placemark
+    async deletePlacemark(index) {
+      if (!confirm('Delete this placemark?')) return;
+      
+      // Remove marker from map
+      if (this.markers[index]) {
+        this.markers[index].setMap(null);
+        this.markers.splice(index, 1);
+      }
+      
+      // Remove from placemarks array
+      const placemark = this.placemarks[index];
+      this.placemarks.splice(index, 1);
+      
+      // Delete from backend if has ID
+      if (placemark.id) {
+        await this.apiCall(`/backend/api/placemark/delete.php`, 'DELETE', { id: placemark.id });
+      }
+    },
+
+    // Edit polygon
+    editPolygon() {
+      if (this.polygon) {
+        this.polygon.setOptions({ editable: true });
+        alert('Polygon is now editable. Click and drag points to modify.');
+      }
+    },
+
+    // Delete polygon
+    async deletePolygon() {
+      if (!confirm('Delete this polygon?')) return;
+      
+      this.clearPolygon();
+      
+      // Delete from backend
+      const projectId = this.$route.params.id || (this.currentProject ? this.currentProject.id_project : null);
+      if (projectId) {
+        await this.apiCall(`/backend/api/polygon/delete.php`, 'DELETE', { project_id: projectId });
+      }
+    },
+
+    // Calculate polygon area
+    calculatePolygonArea() {
+      if (this.polygon) {
+        const area = google.maps.geometry.spherical.computeArea(this.polygon.getPath());
+        this.polygonArea = Math.round(area);
+      }
+    },
+
+    // Export project data
+    exportProjectData() {
+      const projectData = {
+        project_id: this.currentProject ? this.currentProject.id_project : null,
+        project_name: this.currentProject ? this.currentProject.nama_project : 'Untitled Project',
+        placemarks: this.placemarks,
+        polygon: this.polygonPath,
+        exported_at: new Date().toISOString()
+      };
+      
+      const dataStr = JSON.stringify(projectData, null, 2);
+      const dataBlob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(dataBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `project_${projectData.project_id || 'export'}_${Date.now()}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+    },
+
+    // Override existing addMarkerToMap to update sidebar
+    addMarkerToMap(lat, lng, save = true) {
+      const greenIcon = {
+        path: "M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z",
+              fillColor: "#3BB142",
+              fillOpacity: 1,
+              strokeColor: "rgba(93, 215, 103, 0.25)",
+              strokeWeight: 2,
+              scale: 2,
+              anchor: { x: 12, y: 24 }
+      };
+      
+      const marker = new google.maps.Marker({
+        position: { lat, lng },
+        map: this.map,
+        icon: greenIcon,
+        draggable: true
+      });
+
+      this.markers.push(marker);
+      this.placemarks.push({ lat, lng });
+
+      // Save to backend if requested
+      if (save) {
+        this.savePlacemark(lat, lng);
+      }
+
+      // Geocoding untuk mendapatkan alamat
+      const geocoder = new google.maps.Geocoder();
+      geocoder.geocode({ location: { lat, lng } }, (results, status) => {
+        if (status === "OK" && results[0]) {
+          console.log("Alamat:", results[0].formatted_address);
+        }
+      });
+
+      console.log('Marker added at:', lat, lng);
     }
   },
 
@@ -833,21 +1155,6 @@ body {
   min-height: 100vh;
 }
 
-.sidebar {
-  width: 260px;
-  background: linear-gradient(180deg, #17677E 0%, #145a6b 100%);
-  box-shadow: 4px 0 15px rgba(23, 103, 126, 0.2);
-  position: fixed;
-  height: 100vh;
-  z-index: 1000;
-  overflow-y: auto;
-  transition: all 0.3s ease;
-}
-
-.sidebar-header {
-  margin-top: 20px;
-}
-
 .logo {
   color: #CCD2DE;
   font-size: 28px;
@@ -869,51 +1176,17 @@ body {
   margin-right: 8px;  
 }
 
-.sidebar-menu {
-  padding: 20px 0;
-}
-
-.menu-item {
-  display: block;
-  width: 100%;
-  padding: 18px 25px;
-  color: #E5EEF1;
-  text-decoration: none;
-  font-size: 16px;
-  font-weight: 500;
-  transition: all 0.3s ease;
-  border: none;
-  background: none;
-  cursor: pointer;
-  border-left: 4px solid transparent;
-  text-align: left;
-}
-
-.menu-item:hover,
-.menu-item.active {
-  background: rgba(229, 238, 241, 0.2);
-  border-left-color: #CCD2DE;
-  color: #CCD2DE;
-  padding-left: 35px;
-}
-
-.menu-item i {
-  margin-right: 30px;
-  width: 20px;
-  text-align: center;
-}
-
-.main {
-  flex: 1;
-  margin-left: 260px;
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-  padding-top: 70px; 
+.project-container .main {
+  flex: 1 !important;
+  margin-left: 260px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  min-height: 100vh !important;
+  padding-top: 70px !important;
 }
 
 .header {
-  background: linear-gradient(135deg, #17677E 0%, #2980b9 100%);
+  background: linear-gradient(180deg, #17677E 0%, #145a6b 100%);
   color: #E5EEF1;
   padding: 15px 30px;
   box-shadow: 0 4px 15px rgba(23, 103, 126, 0.2);
@@ -926,6 +1199,23 @@ body {
   right: 0;
   z-index: 100;
   height: 70px;
+}
+
+.project-container .sidebar {
+  width: 260px !important;
+  background: linear-gradient(180deg, #17677E 0%, #145a6b 100%) !important;
+  box-shadow: 4px 0 15px rgba(23, 103, 126, 0.2) !important;
+  position: fixed !important;
+  top: 70px !important; /* ganti 9vh dengan tinggi header */
+  left: 0 !important;
+  height: calc(100vh - 70px) !important; /* supaya sidebar tidak menabrak header */
+  z-index: 1000 !important;
+  overflow-y: auto !important;
+  transition: all 0.3s ease !important;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  transform: translateX(0) !important;
 }
 
 .logout-icon {
@@ -1228,84 +1518,315 @@ h1 {
   margin-top: 25px;
 }
 
-@media (max-width: 1024px) {
-  .sidebar {
-    width: 220px;
-  }
-  
-  .main {
-    margin-left: 220px;
-  }
-  
-  .header {
-    left: 220px;
-  }
-  
-  .toolbar {
-    flex-direction: column;
-    gap: 15px;
-    align-items: stretch;
-  }
-  
-  .search-tools input[type="text"] {
-    width: 100%;
-    max-width: 300px;
-  }
+.sidebar-menu {
+  padding: 20px 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
-@media (max-width: 768px) {
-  .sidebar {
-    transform: translateX(-100%);
-    width: 260px;
-  }
-  
-  .sidebar.open {
-    transform: translateX(0);
-  }
-  
-  .main {
-    margin-left: 0;
-  }
-  
-  .header {
-    left: 0;
-  }
-  
-  .toolbar {
-    margin: 10px;
-    padding: 15px;
-  }
-  
-  .search-tools {
-    flex-direction: column;
-    width: 100%;
-  }
-  
-  .search-tools input[type="text"] {
-    width: 100%;
-  }
+.project-info {
+  padding: 0 20px 20px 20px;
+  border-bottom: 1px solid rgba(229, 238, 241, 0.2);
+  margin-bottom: 20px;
 }
 
-@media (max-width: 480px) {
-  .content {
-    margin: 5px;
-    padding: 15px;
-  }
-  
-  .modal-content {
-    padding: 25px;
-  }
-  
-  .search-tools {
-    gap: 8px;
-  }
-  
-  .btn-icon,
-  .btn-success,
-  .btn-danger {
-    padding: 10px 15px;
-    font-size: 13px;
-  }
+.project-info h3 {
+  color: #E5EEF1;
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 5px;
+}
+
+.project-id {
+  color: #CCD2DE;
+  font-size: 12px;
+  opacity: 0.8;
+  margin: 0;
+}
+
+.sidebar-section {
+  margin-bottom: 15px;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+  background: rgba(229, 238, 241, 0.1);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.section-header:hover {
+  background: rgba(229, 238, 241, 0.15);
+}
+
+.section-header h4 {
+  color: #E5EEF1;
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-toggle {
+  background: none;
+  border: none;
+  color: #CCD2DE;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 3px;
+  transition: all 0.3s ease;
+}
+
+.btn-toggle.active {
+  transform: rotate(180deg);
+}
+
+.section-content {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.sidebar-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+  border-bottom: 1px solid rgba(229, 238, 241, 0.1);
+  transition: all 0.3s ease;
+}
+
+.sidebar-item:hover {
+  background: rgba(229, 238, 241, 0.05);
+}
+
+.item-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.item-icon {
+  width: 32px;
+  height: 32px;
+  background: rgba(229, 238, 241, 0.2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #E5EEF1;
+  font-size: 14px;
+}
+
+.placemark-item .item-icon {
+  background: rgba(76, 175, 80, 0.3);
+}
+
+.polygon-item .item-icon {
+  background: rgba(255, 215, 0, 0.3);
+}
+
+.item-details h5 {
+  color: #E5EEF1;
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0 0 4px 0;
+}
+
+.coordinates {
+  color: #CCD2DE;
+  font-size: 11px;
+  margin: 0;
+  font-family: monospace;
+}
+
+.address {
+  color: #CCD2DE;
+  font-size: 10px;
+  margin: 2px 0 0 0;
+  opacity: 0.8;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.area {
+  color: #CCD2DE;
+  font-size: 11px;
+  margin: 2px 0 0 0;
+}
+
+.item-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.btn-action {
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  transition: all 0.3s ease;
+}
+
+.btn-focus {
+  background: #2196F3;
+  color: white;
+}
+
+.btn-focus:hover {
+  background: #1976D2;
+}
+
+.btn-edit {
+  background: #FF9800;
+  color: white;
+}
+
+.btn-edit:hover {
+  background: #F57C00;
+}
+
+.btn-delete {
+  background: #F44336;
+  color: white;
+}
+
+.btn-delete:hover {
+  background: #D32F2F;
+}
+
+.empty-message {
+  text-align: center;
+  padding: 30px 20px;
+  color: #CCD2DE;
+  opacity: 0.7;
+}
+
+.empty-message i {
+  font-size: 32px;
+  margin-bottom: 10px;
+  opacity: 0.5;
+}
+
+.empty-message p {
+  font-size: 12px;
+  margin: 0;
+}
+
+.sidebar-actions {
+  margin-top: auto;
+  padding: 20px;
+  border-top: 1px solid rgba(229, 238, 241, 0.2);
+}
+
+.btn-refresh,
+.btn-export {
+  width: 100%;
+  padding: 10px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 10px;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.btn-refresh {
+  background: #4CAF50;
+  color: white;
+}
+
+.btn-refresh:hover {
+  background: #45a049;
+}
+
+.btn-export {
+  background: #2196F3;
+  color: white;
+}
+
+.btn-export:hover {
+  background: #1976D2;
+}
+
+/* Scrollbar for sidebar sections */
+.section-content::-webkit-scrollbar {
+  width: 4px;
+}
+
+.section-content::-webkit-scrollbar-track {
+  background: rgba(229, 238, 241, 0.1);
+}
+
+.section-content::-webkit-scrollbar-thumb {
+  background: rgba(229, 238, 241, 0.3);
+  border-radius: 2px;
+}
+
+.section-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(229, 238, 241, 0.5);
+}
+
+.sidebar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+  background: rgba(229, 238, 241, 0.1);
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+  background: rgba(229, 238, 241, 0.3);
+  border-radius: 3px;
+}
+
+.sidebar::-webkit-scrollbar-thumb:hover {
+  background: rgba(229, 238, 241, 0.5);
+}
+
+button:focus,
+input:focus {
+  outline: 2px solid #17677E;
+  outline-offset: 2px;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.mt-20 {
+  margin-top: 20px;
+}
+
+.mb-20 {
+  margin-bottom: 20px;
+}
+
+.hidden {
+  display: none;
+}
+
+.visible {
+  display: block;
 }
 
 .project-container {
@@ -1351,48 +1872,5 @@ h1 {
     opacity: 1;
     transform: translateY(0);
   }
-}
-
-.sidebar::-webkit-scrollbar {
-  width: 6px;
-}
-
-.sidebar::-webkit-scrollbar-track {
-  background: rgba(229, 238, 241, 0.1);
-}
-
-.sidebar::-webkit-scrollbar-thumb {
-  background: rgba(229, 238, 241, 0.3);
-  border-radius: 3px;
-}
-
-.sidebar::-webkit-scrollbar-thumb:hover {
-  background: rgba(229, 238, 241, 0.5);
-}
-
-button:focus,
-input:focus {
-  outline: 2px solid #17677E;
-  outline-offset: 2px;
-}
-
-.text-center {
-  text-align: center;
-}
-
-.mt-20 {
-  margin-top: 20px;
-}
-
-.mb-20 {
-  margin-bottom: 20px;
-}
-
-.hidden {
-  display: none;
-}
-
-.visible {
-  display: block;
 }
 </style>
