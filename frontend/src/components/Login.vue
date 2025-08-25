@@ -67,7 +67,6 @@
                                 <span class="checkmark"></span>
                                 Ingat saya
                             </label>
-                            <a href="#" class="forgot-link">Lupa password?</a>
                         </div>
                         
                         <button type="submit" class="btn-primary" :disabled="loading">
