@@ -161,10 +161,13 @@
       </div>
     </div>
   </div>
+  <Project ref="projectPage" />
 </div>
 </template>
 
 <script>
+import Project from "./Project.vue";
+
 export default {
   name: 'Dashboard',
   data() {
@@ -437,11 +440,15 @@ export default {
       console.log(`Edit project: ${projectId}`);
       this.$router.push(`/project/${projectId}`);
     },
-    
+    viewProject(id) {
+      this.$refs.projectPage.loadProjectData(id); 
+    },
+
     viewProject(projectId) {
       console.log(`View project: ${projectId}`);
-      this.$router.push(`/project/${projectId}`);
-    },
+      this.$router.push(`/project/${projectId}`).then(() => {
+      });
+    },  
     
     async deleteProject(projectId) {
       if (!confirm('Are you sure you want to delete this project?')) {

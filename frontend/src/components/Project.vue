@@ -8,32 +8,45 @@
         <p class="project-id">ID: {{ currentProject ? currentProject.id_project : 'N/A' }}</p>
       </div>
 
-      <!-- Placemarks Section -->
       <div class="sidebar-section">
         <div class="section-header">
-          <h4><i class="fas fa-map-marker-alt"></i> Placemarks ({{ placemarks.length }})</h4>
-          <button class="btn-toggle" @click="toggleSection('placemarks')" :class="{ active: showPlacemarks }">
+          <h4>
+            <i class="fas fa-map-marker-alt"></i> 
+            Placemarks ({{ currentProject && currentProject.placemarks ? currentProject.placemarks.length : 0 }})
+          </h4>
+          <button 
+            class="btn-toggle" 
+            @click="toggleSection('placemarks')" 
+            :class="{ active: showPlacemarks }">
             <i class="fas fa-chevron-down"></i>
           </button>
         </div>
         
         <div v-if="showPlacemarks" class="section-content">
-          <div v-if="placemarks.length === 0" class="empty-message">
+          <div v-if="!currentProject || !currentProject.placemarks || currentProject.placemarks.length === 0" class="empty-message">
             <i class="fas fa-map-marker-alt"></i>
             <p>No placemarks yet</p>
           </div>
           
-          <div v-for="(placemark, index) in placemarks" :key="index" class="sidebar-item placemark-item">
+          <div 
+            v-for="(placemark, index) in (currentProject && currentProject.placemarks ? currentProject.placemarks : [])" 
+            :key="placemark.id_placemark || index" 
+            class="sidebar-item placemark-item">
+
             <div class="item-info">
               <div class="item-icon">
                 <i class="fas fa-map-marker-alt"></i>
               </div>
               <div class="item-details">
                 <h5>Placemark {{ index + 1 }}</h5>
-                <p class="coordinates">{{ placemark.lat.toFixed(6) }}, {{ placemark.lng.toFixed(6) }}</p>
-                <p class="address" v-if="placemark.address">{{ placemark.address }}</p>
+                <p class="coordinates">
+                  {{ parseFloat(placemark.latitude).toFixed(6) }}, 
+                  {{ parseFloat(placemark.longitude).toFixed(6) }}
+                </p>
+                <p class="address" v-if="placemark.alamat">{{ placemark.alamat }}</p>
               </div>
             </div>
+
             <div class="item-actions">
               <button @click="focusOnPlacemark(index)" class="btn-action btn-focus" title="Focus on map">
                 <i class="fas fa-eye"></i>
@@ -49,7 +62,6 @@
         </div>
       </div>
 
-      <!-- Polygons Section -->
       <div class="sidebar-section">
         <div class="section-header">
           <h4><i class="fas fa-project-diagram"></i> Polygons ({{ polygon ? 1 : 0 }})</h4>
@@ -210,6 +222,62 @@ export default {
       polygonArea: null
     };
   },
+  
+  async mounted() {
+    // Setup keyboard events
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        if (this.drawingPolygon) {
+          this.clearPolygon();
+        } else if (this.addingMarker) {
+          this.addingMarker = false;
+          this.updateMapCursor();
+        }
+      }
+    });
+
+    // Initialize Google Maps
+    window.initMap = this.initMap.bind(this);
+    const existingScript = document.querySelector('script[src*="maps.googleapis.com"]');
+    
+    if (!existingScript) {
+      const script = document.createElement("script");
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${this.apiKey}&libraries=places,geometry&callback=initMap`;
+      script.async = true;
+      script.defer = true;
+      script.onerror = () => {
+        console.error('Failed to load Google Maps API');
+        alert('Failed to load Google Maps. Please check your API key and internet connection.');
+      };
+      document.head.appendChild(script);
+    } else {
+      this.initMap();
+    }
+
+    const saved = localStorage.getItem('currentProject');
+    if (saved) {
+      this.currentProject = JSON.parse(saved);
+    }
+
+    // Load project data from route parameter
+    const projectId = this.$route.params.id;
+    if (projectId) {
+      this.currentProjectId = projectId;
+      // Wait a bit for map to be initialized
+      setTimeout(() => {
+        this.loadProjectData(projectId);
+      }, 1000);
+    }
+  },
+
+  watch: {
+    '$route.params.id'(newId) {
+      if (newId && this.map) {
+        this.loadProjectData(newId);
+      }
+    }
+  },
+
   methods: {
     async apiCall(endpoint, method = 'GET', data = null) {
       this.loading = true;
@@ -285,7 +353,7 @@ export default {
 
     // Load all projects from backend
     async loadAllProjects() {
-      const result = await this.apiCall('/backend/api/project/read.php');
+      const result = await this.apiCall('/backend/api/project/readOne.php');
       if (result.success) {
         this.savedProjects = result.data || [];
         console.log('Projects loaded:', this.savedProjects.length);
@@ -305,7 +373,7 @@ export default {
 
     // Load specific project and show on map
     async loadProject(projectId) {
-      const result = await this.apiCall(`/project/get_projects.php?id=${projectId}`);
+      const result = await this.apiCall(`/project/readOne.php?id_project=${projectId}`);
       if (result.success) {
         const project = result.data;
         
@@ -469,14 +537,21 @@ export default {
     // =============== MAP HELPER METHODS ===============
     
     addMarkerToMap(lat, lng, save = true) {
+      if (!this.map) {
+        console.error('Map not initialized');
+        return;
+      }
+
+      console.log('Adding marker to map:', lat, lng);
+
       const greenIcon = {
         path: "M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z",
-              fillColor: "#3BB142",
-              fillOpacity: 1,
-              strokeColor: "rgba(93, 215, 103, 0.25)",
-              strokeWeight: 2,
-              scale: 2,
-              anchor: { x: 12, y: 24 }
+        fillColor: "#3BB142",
+        fillOpacity: 1,
+        strokeColor: "rgba(93, 215, 103, 0.25)",
+        strokeWeight: 2,
+        scale: 2,
+        anchor: { x: 12, y: 24 }
       };
       
       const marker = new google.maps.Marker({
@@ -487,33 +562,33 @@ export default {
       });
 
       this.markers.push(marker);
-      this.placemarks.push({ lat, lng });
 
       // Save to backend if requested
       if (save) {
+        // Add to placemarks array for new markers
+        this.placemarks.push({ lat, lng });
         this.savePlacemark(lat, lng);
       }
 
-      // Geocoding untuk mendapatkan alamat
-      const geocoder = new google.maps.Geocoder();
-      geocoder.geocode({ location: { lat, lng } }, (results, status) => {
-        if (status === "OK" && results[0]) {
-          console.log("Alamat:", results[0].formatted_address);
-        }
-      });
-
-      console.log('Marker added at:', lat, lng);
+      console.log('Marker added successfully. Total markers:', this.markers.length);
     },
 
     loadPolygonToMap(coordinates) {
+      if (!this.map) {
+        console.error('Map not initialized');
+        return;
+      }
+
+      console.log('Loading polygon with coordinates:', coordinates);
+
       this.polygon = new google.maps.Polygon({
         paths: coordinates,
-        strokeColor: "#FF0000",
-        strokeOpacity: 0.8,
-        strokeWeight: 3,
-        fillColor: "#FF0000",
-        fillOpacity: 0.3,
-        editable: true,
+        strokeColor: "#FFD700",
+        strokeOpacity: 1.0,
+        strokeWeight: 4,
+        fillColor: "transparent",
+        fillOpacity: 0,
+        editable: false,
         draggable: false,
         clickable: true
       });
@@ -524,8 +599,8 @@ export default {
       // Add event listeners
       this.polygon.addListener('click', () => {
         this.polygon.setOptions({
-          fillOpacity: 0.5,
-          strokeWeight: 4
+          fillOpacity: 0.2,
+          strokeWeight: 6
         });
       });
 
@@ -536,6 +611,8 @@ export default {
       this.polygon.getPath().addListener('insert_at', () => {
         this.updatePolygonPath();
       });
+
+      console.log('Polygon loaded successfully');
     },
 
     clearAllMapData() {
@@ -554,6 +631,57 @@ export default {
       }
       
       console.log('All map data cleared');
+    },
+
+    initMap() {
+      this.map = new google.maps.Map(document.getElementById("map"), {
+        center: { lat: -7.983908, lng: 112.621391 },
+        zoom: 13,
+        mapTypeControl: true,
+        streetViewControl: true,
+        fullscreenControl: true
+      });
+
+      // Event listeners
+      this.map.addListener("click", (e) => {
+        const lat = e.latLng.lat();
+        const lng = e.latLng.lng();
+
+        if (this.drawingPolygon === true) {
+          this.addPolygonPoint(lat, lng);
+          return;
+        }
+        
+        if (this.addingMarker === true) {
+          this.addMarkerToMap(lat, lng);
+          this.addingMarker = false;
+          this.updateMapCursor();
+          return;
+        }
+      });
+
+      this.map.addListener("dblclick", (e) => {
+        if (this.drawingPolygon && this.polygonPath.length >= 3) {
+          e.stop();
+          this.finishPolygon();
+        }
+      });
+
+      this.map.addListener("rightclick", (e) => {
+        if (this.drawingPolygon) {
+          this.clearPolygon();
+        }
+      });
+
+      console.log('Map initialized successfully');
+      
+      // Auto-load project data if we have a project ID
+      const projectId = this.$route.params.id;
+      if (projectId) {
+        setTimeout(() => {
+          this.loadProjectData(projectId);
+        }, 500);
+      }
     },
 
     // =============== UI METHODS ===============
@@ -866,70 +994,42 @@ export default {
     },
 
     // Load project data and populate sidebar
-    async loadProjectData() {
-      const projectId = this.$route.params.id || (this.currentProject ? this.currentProject.id_project : null);
-      
-      if (!projectId) {
-        console.log('No project ID available');
-        return;
-      }
-
-      this.loadingMessage = 'Loading project data...';
-      
+    async loadProjectData(projectId) {
       try {
-        // Load placemarks for this project
-        const placemarkResult = await this.apiCall(`/backend/api/placemark/read.php?id_project=${projectId}`);
-        if (placemarkResult.success && placemarkResult.data) {
-          // Clear existing markers
-          this.markers.forEach(marker => marker.setMap(null));
-          this.markers = [];
-          this.placemarks = [];
-          
-          // Add placemarks to map and list
-          placemarkResult.data.forEach(placemark => {
-            this.addPlacemarkToSidebar(placemark);
-          });
-        }
+        console.log("Loading project data for ID:", projectId);
 
-        // Load polygon for this project
-        const polygonResult = await this.apiCall(`/backend/api/polygon/read.php?id_project=${projectId}`);
-        if (polygonResult.success && polygonResult.data && polygonResult.data.length > 0) {
-          // Clear existing polygon
-          this.clearPolygon();
-          
-          // Load first polygon (assuming one polygon per project)
-          const polygonData = polygonResult.data[0];
-          if (polygonData.coordinates) {
-            this.loadPolygonToMap(JSON.parse(polygonData.coordinates));
-            this.calculatePolygonArea();
+        // === Ambil project detail (sudah ada placemarks + polygon) ===
+        const projectResult = await this.apiCall(`/backend/api/project/readOne.php?id_project=${projectId}`);
+        if (projectResult.success && projectResult.data) {
+          this.currentProject = projectResult.data;
+          console.log('✅ Project info loaded:', this.currentProject);
+
+          // === Tampilkan placemarks ke map ===
+          if (this.currentProject.placemarks && this.currentProject.placemarks.length > 0) {
+            this.currentProject.placemarks.forEach(pm => {
+              this.addMarkerToMap(parseFloat(pm.latitude), parseFloat(pm.longitude), false);
+            });
+          } else {
+            console.log('ℹ️ No placemarks found in this project');
           }
+
+          // === Tampilkan polygon ke map ===
+          if (this.currentProject.polygon && this.currentProject.polygon.coordinate) {
+            try {
+              const coords = JSON.parse(this.currentProject.polygon.coordinate);
+              this.loadPolygonToMap(coords);
+              this.calculatePolygonArea();
+            } catch (e) {
+              console.error("❌ Polygon parse error:", e, this.currentProject.polygon.coordinate);
+            }
+          } else {
+            console.log('ℹ️ No polygon found in this project');
+          }
+        } else {
+          console.error("❌ Failed to load project detail", projectResult.message);
         }
-
-        console.log('Project data loaded successfully');
-      } catch (error) {
-        console.error('Error loading project data:', error);
-      }
-    },
-
-    addPlacemarkToSidebar(placemarkData) {
-      const lat = parseFloat(placemarkData.lat);
-      const lng = parseFloat(placemarkData.lng);
-      
-      // Add to placemarks array
-      this.placemarks.push({
-        lat: lat,
-        lng: lng,
-        name: placemarkData.name || `Placemark ${this.placemarks.length + 1}`,
-        address: placemarkData.description || '',
-        id: placemarkData.id
-      });
-      
-      // Add marker to map
-      this.addMarkerToMap(lat, lng, false);
-      
-      // Get address if not provided
-      if (!placemarkData.description) {
-        this.getAddressForPlacemark(this.placemarks.length - 1, lat, lng);
+      } catch (err) {
+        console.error("❌ Error loading project data:", err);
       }
     },
 
@@ -1049,85 +1149,7 @@ export default {
       link.download = `project_${projectData.project_id || 'export'}_${Date.now()}.json`;
       link.click();
       URL.revokeObjectURL(url);
-    },
-
-    // Override existing addMarkerToMap to update sidebar
-    addMarkerToMap(lat, lng, save = true) {
-      const greenIcon = {
-        path: "M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z",
-              fillColor: "#3BB142",
-              fillOpacity: 1,
-              strokeColor: "rgba(93, 215, 103, 0.25)",
-              strokeWeight: 2,
-              scale: 2,
-              anchor: { x: 12, y: 24 }
-      };
-      
-      const marker = new google.maps.Marker({
-        position: { lat, lng },
-        map: this.map,
-        icon: greenIcon,
-        draggable: true
-      });
-
-      this.markers.push(marker);
-      this.placemarks.push({ lat, lng });
-
-      // Save to backend if requested
-      if (save) {
-        this.savePlacemark(lat, lng);
-      }
-
-      // Geocoding untuk mendapatkan alamat
-      const geocoder = new google.maps.Geocoder();
-      geocoder.geocode({ location: { lat, lng } }, (results, status) => {
-        if (status === "OK" && results[0]) {
-          console.log("Alamat:", results[0].formatted_address);
-        }
-      });
-
-      console.log('Marker added at:', lat, lng);
     }
-  },
-
-  async mounted() {
-    // Setup keyboard events
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
-        if (this.drawingPolygon) {
-          this.clearPolygon();
-        } else if (this.addingMarker) {
-          this.addingMarker = false;
-          this.updateMapCursor();
-        }
-      }
-    });
-
-    // Initialize Google Maps
-    window.initMap = this.initMap.bind(this);
-    const existingScript = document.querySelector('script[src*="maps.googleapis.com"]');
-    
-    if (!existingScript) {
-      const script = document.createElement("script");
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${this.apiKey}&libraries=places&callback=initMap`;
-      script.async = true;
-      script.defer = true;
-      script.onerror = () => {
-        console.error('Failed to load Google Maps API');
-        alert('Failed to load Google Maps. Please check your API key and internet connection.');
-      };
-      document.head.appendChild(script);
-    } else {
-      this.initMap();
-    }
-
-    const saved = localStorage.getItem('currentProject');
-    if (saved) {
-      this.currentProject = JSON.parse(saved);
-    }
-
-    // Load initial data
-    await this.loadAllProjects();
   }
 };
 </script>
