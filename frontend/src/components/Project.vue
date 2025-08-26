@@ -95,9 +95,6 @@
         <button @click="loadProjectData()" class="btn-refresh">
           <i class="fas fa-sync-alt"></i> Refresh Data
         </button>
-        <button @click="exportProjectData()" class="btn-export">
-          <i class="fas fa-download"></i> Export Project
-        </button>
       </div>
     </div>
   </div>
@@ -394,7 +391,7 @@ export default {
     // Update existing project
     async updateProject(projectId, updateData) {
       const result = await this.apiCall('/backend/api/project/update.php', 'PUT', {
-        id: projectId,
+        id_project: projectId,
         ...updateData
       });
       
@@ -408,7 +405,7 @@ export default {
     async deleteProject(projectId) {
       if (!confirm('Yakin ingin menghapus project ini?')) return;
       
-      const result = await this.apiCall('/backend/api/project/delete.php', 'DELETE', { id: projectId });
+      const result = await this.apiCall('/backend/api/project/delete.php', 'DELETE', { id_project: projectId });
       
       if (result.success) {
         alert('Project berhasil dihapus!');
@@ -881,7 +878,7 @@ export default {
       
       try {
         // Load placemarks for this project
-        const placemarkResult = await this.apiCall(`/backend/api/placemark/read.php?project_id=${projectId}`);
+        const placemarkResult = await this.apiCall(`/backend/api/placemark/read.php?id_project=${projectId}`);
         if (placemarkResult.success && placemarkResult.data) {
           // Clear existing markers
           this.markers.forEach(marker => marker.setMap(null));
@@ -895,7 +892,7 @@ export default {
         }
 
         // Load polygon for this project
-        const polygonResult = await this.apiCall(`/backend/api/polygon/read.php?project_id=${projectId}`);
+        const polygonResult = await this.apiCall(`/backend/api/polygon/read.php?id_project=${projectId}`);
         if (polygonResult.success && polygonResult.data && polygonResult.data.length > 0) {
           // Clear existing polygon
           this.clearPolygon();

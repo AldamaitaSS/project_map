@@ -1,38 +1,16 @@
 <template>
 <div class="dashboard-container" id="dashboardPage">
-  <div class="sidebar">
-      <div class="sidebar-header">
-        <div class="logo">
-          <i class="fas fa-network-wired"></i>
-          <span class="net">NET</span><span class="map">MAP</span>
-        </div>
-      </div>
-      <div class="sidebar-menu">
-        <button 
-          class="menu-item" 
-          :class="{ active: $route.name === 'Dashboard' }"
-          @click="$router.push('/dashboard')">
-          <i class="fas fa-home"></i> Dashboard
-        </button>
-
-        <button 
-          class="menu-item" 
-          :class="{ active: $route.name === 'Project' }"
-          @click="$router.push('/project')">
-          <i class="fas fa-project-diagram"></i> Projects
-        </button>
-      </div>
-    </div>
   <div class="main">
-    <!-- Header -->
     <div class="header">
+      <div class="logo">
+        <i class="fas fa-network-wired"></i>
+        <span class="net">NET</span><span class="map">MAP</span>
+      </div>
       <i class="fas fa-sign-out-alt logout-icon" @click="logout"></i>
     </div>
 
-    <!-- Projects Content -->
     <h1>Dashboard</h1>
     
-    <!-- Top Actions -->
     <div class="toolbar">
       <button class="btn-new" @click="createNewProject">
         <i class="fas fa-plus"></i> New
@@ -570,7 +548,6 @@ export default {
 </script>
 
 <style>
-/* =============== BASE STYLES =============== */
 * {
   margin: 0;
   padding: 0;
@@ -584,26 +561,9 @@ body {
   color: #17677E;
 }
 
-/* =============== MAIN LAYOUT =============== */
 .dashboard-container {
   display: flex;
   min-height: 100vh;
-}
-
-/* =============== SIDEBAR =============== */
-.sidebar {
-  width: 260px;
-  background: #FFFFFF;
-  box-shadow: 4px 0 15px rgba(23, 103, 126, 0.2);
-  position: fixed;
-  height: 100vh;
-  z-index: 1000;
-  overflow-y: auto;
-  transition: all 0.3s ease;
-}
-
-.sidebar-header {
-  margin-top: 20px;
 }
 
 .logo {
@@ -626,10 +586,6 @@ body {
 
 .logo i {
   margin-right: 8px;
-}
-
-.sidebar-menu {
-  padding: 20px 0;
 }
 
 .menu-item {
@@ -661,7 +617,6 @@ body {
   text-align: center;
 }
 
-/* =============== MAIN CONTENT =============== */
 .main {
   flex: 1;
   margin-left: 260px;
@@ -670,9 +625,9 @@ body {
   min-height: 100vh;
 }
 
-/* =============== HEADER =============== */
 .header {
-  background: #FFFFFF;
+  width: 100%;
+  background: linear-gradient(135deg, #17677E 0%, #145a6b 100%);
   color: #17677E;
   padding: 10px 30px;
   box-shadow: 0 4px 15px rgba(23, 103, 126, 0.2);
@@ -681,7 +636,7 @@ body {
   align-items: center;
   position: fixed;
   top: 0;
-  left: 260px;
+  left: 0;
   right: 0;
   z-index: 100;
 }
@@ -701,7 +656,6 @@ body {
   transform: scale(1.1);
 }
 
-/* =============== PAGE TITLE =============== */
 h1 {
   color: #17677E;
   font-size: 30px;
@@ -713,7 +667,6 @@ h1 {
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
 }
 
-/* =============== TOP ACTIONS =============== */
 .toolbar {
   display: flex;
   justify-content: space-between;
@@ -778,7 +731,6 @@ h1 {
   box-shadow: 0 0 0 3px rgba(23, 103, 126, 0.2);
 }
 
-/* =============== TABLE STYLES =============== */
 .table-container {
   background: white;
   border-radius: 15px;
@@ -834,7 +786,6 @@ h1 {
   vertical-align: middle;
 }
 
-/* =============== TABLE CONTENT STYLES =============== */
 .project-name {
   display: flex;
   align-items: center;
@@ -1033,10 +984,6 @@ h1 {
 
 /* =============== RESPONSIVE DESIGN =============== */
 @media (max-width: 1024px) {
-  .sidebar {
-    width: 220px;
-  }
-  
   .main {
     margin-left: 220px;
   }
@@ -1053,12 +1000,6 @@ h1 {
 }
 
 @media (max-width: 768px) {
-  .sidebar {
-    width: 100%;
-    height: auto;
-    position: relative;
-    box-shadow: none;
-  }
   
   .main {
     margin-left: 0;
@@ -1814,6 +1755,50 @@ select:focus {
   border: 2px solid #b8dabc;
 }
 
-/* Semua CSS lainnya yang sudah ada sebelumnya... */
-/* [Tambahkan semua CSS yang ada di file sebelumnya di sini] */
+.sidebar,
+.app-sidebar,
+.left-sidebar,
+.nav-sidebar {
+  display: none !important;
+  width: 0 !important;
+  min-width: 0 !important;
+  visibility: hidden !important;
+}
+
+.main {
+  margin-left: 0 !important;
+  width: 100% !important;
+  padding-left: 0 !important;
+}
+
+/* Header should span full width (remove left offset) */
+.header {
+  left: 0 !important;
+  right: 0 !important;
+  width: 100% !important;
+}
+
+.dashboard-container {
+  display: block !important;
+  width: 100% !important;
+}
+
+h1 {
+  margin-top: 20px !important;
+}
+
+@media (max-width: 1024px) {
+  .main { margin-left: 0 !important; }
+  .header { left: 0 !important; }
+}
+
+@media (max-width: 768px) {
+  .main { margin-left: 0 !important; }
+  .header { left: 0 !important; padding: 15px 20px; }
+}
+
+body, .app-root {
+  padding-left: 0 !important;
+}
+
 </style>

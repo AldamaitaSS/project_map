@@ -70,9 +70,10 @@ try {
     $placemark_ids = [];
     if (!empty($data->placemarks) && is_array($data->placemarks)) {
         foreach($data->placemarks as $placemark) {
-            $stmt = $pdo->prepare("INSERT INTO placemark (nama_placemark, deskripsi, latitude, longitude) 
-                                   VALUES (?, ?, ?, ?) RETURNING id_placemark");
+            $stmt = $pdo->prepare("INSERT INTO placemark (id_project, nama_placemark, deskripsi, latitude, longitude) 
+                                VALUES (?, ?, ?, ?, ?) RETURNING id_placemark");
             $stmt->execute([
+                $id_project,
                 "Marker " . date('Y-m-d H:i:s'),
                 "Auto generated placemark",
                 $placemark->lat,
@@ -84,35 +85,36 @@ try {
     }
 
     // Simpan polygon
-    $polygon_id = null;
+    $polygon_ids = [];
     if (!empty($data->polygon) && is_array($data->polygon)) {
-        $stmt = $pdo->prepare("INSERT INTO polygon (nama_polygon, deskripsi, coordinate) 
-                               VALUES (?, ?, ?) RETURNING id_polygon");
+        $stmt = $pdo->prepare("INSERT INTO polygon (id_project, nama_polygon, deskripsi, coordinate) 
+                            VALUES (?, ?, ?, ?) RETURNING id_polygon");
         $stmt->execute([
+            $id_project,
             "Polygon " . date('Y-m-d H:i:s'),
             "Auto generated polygon",
             json_encode($data->polygon)
         ]);
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        $polygon_id = $result['id_polygon'];
+        $polygon_ids[] = $result['id_polygon'];
     }
 
     // Update project (bukan insert baru)
     $first_placemark_id = !empty($placemark_ids) ? $placemark_ids[0] : null;
 
     $stmt = $pdo->prepare("UPDATE project 
-                           SET id_placemark = ?, id_polygon = ?, nama_project = ?, deskripsi = ?, updated_at = NOW() 
-                           WHERE id_project = ? RETURNING id_project");
-    $stmt->execute([$first_placemark_id, $polygon_id, $nama_project, $deskripsi, $id_project]);
+                       SET nama_project = ?, deskripsi = ?, updated_at = NOW()
+                       WHERE id_project = ? RETURNING id_project");
+    $stmt->execute([$nama_project, $deskripsi, $id_project]);
 
     $pdo->commit();
 
     sendResponse('success', 'Project berhasil disimpan', array(
         "id_project" => $id_project,
         "placemarks_count" => count($placemark_ids),
-        "has_polygon" => $polygon_id !== null,
+        "polygons_count" => count($polygon_ids),
         "placemark_ids" => $placemark_ids,
-        "polygon_id" => $polygon_id
+        "polygon_ids" => $polygon_ids
     ));
 
 } catch(PDOException $e) {
