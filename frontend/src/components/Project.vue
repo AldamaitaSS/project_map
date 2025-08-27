@@ -8,26 +8,30 @@
         <p class="project-id">ID: {{ currentProject ? currentProject.id_project : 'N/A' }}</p>
       </div>
 
-      <div class="sidebar-section">
-        <div class="section-header">
-          <h4>
-            <i class="fas fa-map-marker-alt"></i> 
-            Placemarks ({{ currentProject && currentProject.placemarks ? currentProject.placemarks.length : 0 }})
-          </h4>
-          <button 
-            class="btn-toggle" 
-            @click="toggleSection('placemarks')" 
-            :class="{ active: showPlacemarks }">
-            <i class="fas fa-chevron-down"></i>
-          </button>
+        <div class="sidebar-section">
+      <div class="section-header">
+        <h4>
+          <i class="fas fa-map-marker-alt"></i> 
+          Placemarks ({{ currentProject && currentProject.placemarks ? currentProject.placemarks.length : 0 }})
+        </h4>
+        <button 
+          class="btn-toggle" 
+          @click="toggleSection('placemarks')" 
+          :class="{ active: showPlacemarks }">
+          <i class="fas fa-chevron-down"></i>
+        </button>
+      </div>
+      
+      <div v-if="showPlacemarks" class="section-content">
+        <div 
+          v-if="!currentProject || !currentProject.placemarks || currentProject.placemarks.length === 0" 
+          class="empty-message">
+          <i class="fas fa-map-marker-alt"></i>
+          <p>No placemarks yet</p>
         </div>
         
-        <div v-if="showPlacemarks" class="section-content">
-          <div v-if="!currentProject || !currentProject.placemarks || currentProject.placemarks.length === 0" class="empty-message">
-            <i class="fas fa-map-marker-alt"></i>
-            <p>No placemarks yet</p>
-          </div>
-          
+        <!-- Scrollable list -->
+        <div class="placemark-list">
           <div 
             v-for="(placemark, index) in (currentProject && currentProject.placemarks ? currentProject.placemarks : [])" 
             :key="placemark.id_placemark || index" 
@@ -61,6 +65,7 @@
           </div>
         </div>
       </div>
+    </div>
 
       <div class="sidebar-section">
         <div class="section-header">
@@ -100,13 +105,6 @@
             </div>
           </div>
         </div>
-      </div>
-
-      <!-- Project Actions -->
-      <div class="sidebar-actions">
-        <button @click="loadProjectData()" class="btn-refresh">
-          <i class="fas fa-sync-alt"></i> Refresh Data
-        </button>
       </div>
     </div>
   </div>
@@ -191,6 +189,9 @@
 <script>
 export default {
   name: "Project",
+  props: {
+    currentProject: Object
+  },
   data() {
     return {
       // Map related
@@ -1072,13 +1073,23 @@ export default {
 
     // Edit placemark
     editPlacemark(index) {
-      const placemark = this.placemarks[index];
-      const newName = prompt('Edit placemark name:', placemark.name || `Placemark ${index + 1}`);
-      
-      if (newName !== null) {
-        this.placemarks[index].name = newName;
-        // Update in backend if needed
-        // this.updatePlacemarkInBackend(placemark.id, { name: newName });
+      if (!this.currentProject || !this.currentProject.placemarks) {
+        console.warn("⚠️ Tidak ada project/placemark yang bisa diedit");
+        return;
+      }
+
+      const placemark = this.currentProject.placemarks[index];
+
+      if (!placemark) {
+        console.warn("⚠️ Placemark dengan index", index, "tidak ditemukan");
+        return;
+      }
+
+      // kalau field name kosong, fallback ke string default
+      const newName = prompt("Edit placemark name:", placemark.name || `Placemark ${index + 1}`);
+      if (newName && newName.trim() !== "") {
+        placemark.name = newName.trim();
+        console.log("✅ Placemark updated:", placemark);
       }
     },
 
@@ -1125,9 +1136,13 @@ export default {
 
     // Calculate polygon area
     calculatePolygonArea() {
-      if (this.polygon) {
+      if (this.polygon && window.google && google.maps.geometry) {
         const area = google.maps.geometry.spherical.computeArea(this.polygon.getPath());
         this.polygonArea = Math.round(area);
+        console.log("✅ Polygon area:", this.polygonArea, "m²");
+      } else {
+        console.warn("⚠️ Geometry library belum siap, coba lagi nanti...");
+        setTimeout(() => this.calculatePolygonArea(), 500);
       }
     },
 
@@ -1271,13 +1286,13 @@ h1 {
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
 }
 
-.toolbar {
+.project-container .toolbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin: 20px;
   margin-top: -5px;
-  padding: 15px;
+  padding: 12px;
   background: rgba(255, 255, 255, 0.9);
   border-radius: 15px;
   backdrop-filter: blur(10px);
@@ -1304,7 +1319,7 @@ h1 {
 }
 
 .search-tools input[type="text"] {
-  padding: 12px 18px;
+  padding: 10px 14px;
   border: 2px solid #CCD2DE;
   border-radius: 10px;
   width: 280px;
@@ -1327,7 +1342,7 @@ h1 {
 }
 
 .btn-icon {
-  padding: 12px;
+  padding: 10px;
   border: none;
   background: #FFFFFF;
   color: #17677E;
@@ -1359,7 +1374,7 @@ h1 {
 }
 
 .btn-success {
-  padding: 12px 10px;
+  padding: 8px 6px;
   background: linear-gradient(135deg, #28a745, #20c997);
   color: white;
   border: none;
@@ -1381,7 +1396,7 @@ h1 {
 }
 
 .btn-danger {
-  padding: 12px 10px;
+  padding: 10px 8px;
   background: linear-gradient(135deg, #dc3545, #e74c3c);
   color: white;
   border: none;
@@ -1542,6 +1557,23 @@ h1 {
   height: 100%;
   display: flex;
   flex-direction: column;
+}
+
+.placemark-list {
+  max-height: 200px; /* cukup untuk sekitar 3 item */
+  overflow-y: auto;
+  padding-right: 5px; /* biar isi tidak ketiban scrollbar */
+}
+
+.placemark-list::-webkit-scrollbar {
+  width: 6px;
+}
+.placemark-list::-webkit-scrollbar-thumb {
+  background: #aaa;
+  border-radius: 3px;
+}
+.placemark-list::-webkit-scrollbar-thumb:hover {
+  background: #777;
 }
 
 .project-info {
@@ -1750,41 +1782,6 @@ h1 {
   margin-top: auto;
   padding: 20px;
   border-top: 1px solid rgba(229, 238, 241, 0.2);
-}
-
-.btn-refresh,
-.btn-export {
-  width: 100%;
-  padding: 10px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 600;
-  margin-bottom: 10px;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-}
-
-.btn-refresh {
-  background: #4CAF50;
-  color: white;
-}
-
-.btn-refresh:hover {
-  background: #45a049;
-}
-
-.btn-export {
-  background: #2196F3;
-  color: white;
-}
-
-.btn-export:hover {
-  background: #1976D2;
 }
 
 /* Scrollbar for sidebar sections */
