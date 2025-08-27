@@ -1,69 +1,69 @@
 <?php
-header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
+include_once '../../config/database.php';
+include_once '../../model/placemark.php';
+include_once '../../util/cors.php';
 
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
-    exit;
-}
+header('Content-Type: application/json');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    echo json_encode(['success' => false, 'message' => 'Method harus POST']);
+    echo json_encode(['success' => false, 'message' => 'Method not allowed']);
     exit;
 }
 
-$input = json_decode(file_get_contents('php://input'), true);
+try {
+    $database = new Database();
+    $db = $database->getConnection();
+    $placemark = new Placemark($db);
 
-// Validasi input
-$required = ['lat', 'lng', 'name'];
-foreach ($required as $field) {
-    if (!isset($input[$field]) || empty($input[$field])) {
-        echo json_encode([
-            'success' => false,
-            'message' => "Field $field harus diisi"
-        ]);
+    // Get POST data
+    $data = json_decode(file_get_contents("php://input"));
+
+    if (!$data || !isset($data->id_project) || !isset($data->latitude) || !isset($data->longitude)) {
+        echo json_encode(['success' => false, 'message' => 'Missing required fields: id_project, latitude, longitude']);
         exit;
     }
-}
 
-// Load existing placemarks
-$placemarksFile = __DIR__ . '/../../data/placemarks.json';
-$placemarks = [];
-if (file_exists($placemarksFile)) {
-    $placemarks = json_decode(file_get_contents($placemarksFile), true) ?? [];
-}
-
-// Add new placemark
-$newPlacemark = [
-    'id' => count($placemarks) + 1,
-    'lat' => floatval($input['lat']),
-    'lng' => floatval($input['lng']),
-    'name' => $input['name'],
-    'description' => $input['description'] ?? '',
-    'created_at' => date('Y-m-d H:i:s'),
-    'updated_at' => date('Y-m-d H:i:s')
-];
-
-$placemarks[] = $newPlacemark;
-
-// Save placemarks
-$dataDir = dirname($placemarksFile);
-if (!file_exists($dataDir)) {
-    mkdir($dataDir, 0755, true);
-}
-
-if (file_put_contents($placemarksFile, json_encode($placemarks, JSON_PRETTY_PRINT))) {
-    echo json_encode([
-        'success' => true,
-        'message' => 'Placemark berhasil dibuat',
-        'data' => $newPlacemark
-    ]);
-} else {
-    echo json_encode([
-        'success' => false,
-        'message' => 'Gagal menyimpan placemark'
-    ]);
+    $placemark->id_project = $data->id_project;
+    $placemark->nama_placemark = !empty($data->nama_placemark) 
+    ? $data->nama_placemark 
+    : 'Placemark ' . date('Y-m-d H:i:s');
+    $placemark->deskripsi = $data->deskripsi ?? 'Auto generated placemark';
+    $placemark->latitude = $data->latitude;
+    $placemark->longitude = $data->longitude;
+    
+    // NEW: Set address fields
+    $placemark->alamat = $data->alamat ?? '';
+    $placemark->rt = $data->rt ?? '';
+    $placemark->rw = $data->rw ?? '';
+    $placemark->kelurahan = $data->kelurahan ?? '';
+    $placemark->kecamatan = $data->kecamatan ?? '';
+    $placemark->kota = $data->kota ?? '';
+    $placemark->provinsi = $data->provinsi ?? '';
+    
+    // Create placemark
+    if ($placemark->create()) {
+        echo json_encode([
+            'success' => true,
+            'message' => 'Placemark created successfully',
+            'data' => [
+                'id_placemark' => $placemark->id_placemark,
+                'id_project' => $placemark->id_project,
+                'nama_placemark' => $placemark->nama_placemark,
+                'latitude' => $placemark->latitude,
+                'longitude' => $placemark->longitude,
+                'alamat' => $placemark->alamat,
+                'rt' => $placemark->rt,
+                'rw' => $placemark->rw,
+                'kelurahan' => $placemark->kelurahan,
+                'kecamatan' => $placemark->kecamatan,
+                'kota' => $placemark->kota,
+                'provinsi' => $placemark->provinsi
+            ]
+        ]);
+    } else {
+        echo json_encode(['success' => false, 'message' => 'Failed to create placemark']);
+    }
+} catch (Exception $e) {
+    echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
 }
 ?>

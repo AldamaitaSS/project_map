@@ -21,11 +21,6 @@ const routes = [
     component: Dashboard
   },
   {
-    path: '/project',
-    name: 'Project',
-    component: Project
-  },
-  {
     path: '/project/:id',
     name: 'ProjectEdit',
     component: Project,

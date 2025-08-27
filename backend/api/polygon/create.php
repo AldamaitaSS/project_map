@@ -1,66 +1,57 @@
 <?php
-header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
+include_once '../../config/database.php';
+include_once '../../model/polygon.php';
+include_once '../../util/cors.php';
 
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
-    exit;
-}
+header('Content-Type: application/json');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    echo json_encode(['success' => false, 'message' => 'Method harus POST']);
+    echo json_encode(['success' => false, 'message' => 'Method not allowed']);
     exit;
 }
 
-$input = json_decode(file_get_contents('php://input'), true);
+try {
+    $database = new Database();
+    $db = $database->getConnection();
+    $polygon = new Polygon($db);
 
-// Validasi input
-if (!isset($input['coordinates']) || !is_array($input['coordinates']) || count($input['coordinates']) < 3) {
-    echo json_encode([
-        'success' => false,
-        'message' => 'Minimal 3 koordinat diperlukan untuk polygon'
-    ]);
-    exit;
-}
+    // Get POST data
+    $data = json_decode(file_get_contents("php://input"));
 
-// Load existing polygons
-$polygonsFile = __DIR__ . '/../../data/polygons.json';
-$polygons = [];
-if (file_exists($polygonsFile)) {
-    $polygons = json_decode(file_get_contents($polygonsFile), true) ?? [];
-}
+    if (!$data) {
+        echo json_encode(['success' => false, 'message' => 'Invalid JSON']);
+        exit;
+    }
 
-// Add new polygon
-$newPolygon = [
-    'id' => count($polygons) + 1,
-    'name' => $input['name'] ?? 'Polygon ' . (count($polygons) + 1),
-    'description' => $input['description'] ?? '',
-    'coordinates' => $input['coordinates'],
-    'color' => $input['color'] ?? '#FF0000',
-    'created_at' => date('Y-m-d H:i:s'),
-    'updated_at' => date('Y-m-d H:i:s')
-];
+    error_log(print_r($data, true));
 
-$polygons[] = $newPolygon;
+    if (!$data || !isset($data->id_project) || !isset($data->coordinate)) {
+        echo json_encode(['success' => false, 'message' => 'Missing required fields']);
+        exit;
+    }
 
-// Save polygons
-$dataDir = dirname($polygonsFile);
-if (!file_exists($dataDir)) {
-    mkdir($dataDir, 0755, true);
-}
-
-if (file_put_contents($polygonsFile, json_encode($polygons, JSON_PRETTY_PRINT))) {
-    echo json_encode([
-        'success' => true,
-        'message' => 'Polygon berhasil dibuat',
-        'data' => $newPolygon
-    ]);
-} else {
-    echo json_encode([
-        'success' => false,
-        'message' => 'Gagal menyimpan polygon'
-    ]);
+    // Set polygon properties
+    $polygon->id_project = $data->id_project;
+    $polygon->nama_polygon = $data->nama_polygon ?? 'Polygon ' . date('Y-m-d H:i:s');
+    $polygon->deskripsi = $data->deskripsi ?? 'Auto generated polygon';
+    $polygon->coordinate = is_string($data->coordinate) ? $data->coordinate : json_encode($data->coordinate);
+    
+    // Create polygon
+    if ($polygon->create()) {
+        echo json_encode([
+            'success' => true,
+            'message' => 'Polygon created successfully',
+            'data' => [
+                'id_polygon' => $polygon->id_polygon ?? time(),
+                'id_project' => $polygon->id_project,
+                'nama_polygon' => $polygon->nama_polygon,
+                'coordinates' => json_decode($polygon->coordinate, true)
+            ]
+        ]);
+    } else {
+        echo json_encode(['success' => false, 'message' => 'Failed to create polygon']);
+    }
+} catch (Exception $e) {
+    echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
 }
 ?>
