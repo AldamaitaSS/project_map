@@ -9,100 +9,95 @@
       </div>
 
         <div class="sidebar-section">
-      <div class="section-header">
-        <h4>
-          <i class="fas fa-map-marker-alt"></i> 
-          Placemarks ({{ currentProject && currentProject.placemarks ? currentProject.placemarks.length : 0 }})
-        </h4>
-        <button 
-          class="btn-toggle" 
-          @click="toggleSection('placemarks')" 
-          :class="{ active: showPlacemarks }">
-          <i class="fas fa-chevron-down"></i>
-        </button>
-      </div>
-      
-      <div v-if="showPlacemarks" class="section-content">
-        <div 
-          v-if="!currentProject || !currentProject.placemarks || currentProject.placemarks.length === 0" 
-          class="empty-message">
-          <i class="fas fa-map-marker-alt"></i>
-          <p>No placemarks yet</p>
+        <div class="section-header">
+          <h4>
+            <i class="fas fa-map-marker-alt"></i> 
+            Placemarks ({{ currentProject && currentProject.placemarks ? currentProject.placemarks.length : 0 }})
+          </h4>
+          <button 
+            class="btn-toggle" 
+            @click="toggleSection('placemarks')" 
+            :class="{ active: showPlacemarks }">
+            <i class="fas fa-chevron-down"></i>
+          </button>
         </div>
         
-        <!-- Scrollable list -->
-        <div class="placemark-list">
+        <div v-if="showPlacemarks" class="section-content">
           <div 
-            v-for="(placemark, index) in (currentProject && currentProject.placemarks ? currentProject.placemarks : [])" 
-            :key="placemark.id_placemark || index" 
-            class="sidebar-item placemark-item">
+            v-if="!currentProject || !currentProject.placemarks || currentProject.placemarks.length === 0" 
+            class="empty-message">
+            <i class="fas fa-map-marker-alt"></i>
+            <p>No placemarks yet</p>
+          </div>
+          
+          <!-- Scrollable list -->
+          <div class="placemark-list">
+            <div 
+              v-for="(placemark, index) in (currentProject && currentProject.placemarks ? currentProject.placemarks : [])" 
+              :key="placemark.id_placemark || index" 
+              class="sidebar-item placemark-item">
 
-            <div class="item-info">
-              <div class="item-icon">
-                <i class="fas fa-map-marker-alt"></i>
+              <div class="item-info">
+                <div class="item-icon">
+                  <i class="fas fa-map-marker-alt"></i>
+                </div>
+                <div class="item-details">
+                  <h5>{{ placemark.nama_placemark }}</h5>
+                  <p class="coordinates">
+                    {{ parseFloat(placemark.latitude).toFixed(6) }}, 
+                    {{ parseFloat(placemark.longitude).toFixed(6) }}
+                  </p>
+                  <p class="address" v-if="placemark.alamat">{{ placemark.alamat }}</p>
+                </div>
               </div>
-              <div class="item-details">
-                <h5>Placemark {{ index + 1 }}</h5>
-                <p class="coordinates">
-                  {{ parseFloat(placemark.latitude).toFixed(6) }}, 
-                  {{ parseFloat(placemark.longitude).toFixed(6) }}
-                </p>
-                <p class="address" v-if="placemark.alamat">{{ placemark.alamat }}</p>
-              </div>
-            </div>
 
-            <div class="item-actions">
-              <button @click="focusOnPlacemark(index)" class="btn-action btn-focus" title="Focus on map">
-                <i class="fas fa-eye"></i>
-              </button>
-              <button @click="editPlacemark(index)" class="btn-action btn-edit" title="Edit">
-                <i class="fas fa-edit"></i>
-              </button>
-              <button @click="deletePlacemark(index)" class="btn-action btn-delete" title="Delete">
-                <i class="fas fa-trash"></i>
-              </button>
+              <div class="item-actions">
+                <button @click="editPlacemark(index)" class="btn-action btn-edit" title="Edit">
+                  <i class="fas fa-edit"></i>
+                </button>
+                <button @click="deletePlacemark(index)" class="btn-action btn-delete" title="Delete">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
 
       <div class="sidebar-section">
         <div class="section-header">
-          <h4><i class="fas fa-project-diagram"></i> Polygons ({{ polygon ? 1 : 0 }})</h4>
+          <h4><i class="fas fa-project-diagram"></i> Polygons ({{ polygon || polyline ? 1 : 0 }})</h4>
           <button class="btn-toggle" @click="toggleSection('polygons')" :class="{ active: showPolygons }">
             <i class="fas fa-chevron-down"></i>
           </button>
         </div>
         
-        <div v-if="showPolygons" class="section-content">
-          <div v-if="!polygon" class="empty-message">
-            <i class="fas fa-project-diagram"></i>
-            <p>No polygon yet</p>
+        <div v-if="!(polygon || polyline)" class="empty-message">
+          <i class="fas fa-project-diagram"></i>
+          <p>No polygon yet</p>
+        </div>
+
+        <div v-if="polygon || polyline" class="sidebar-item polygon-item">
+          <div class="item-info">
+            <div class="item-icon">
+              <i class="fas fa-project-diagram"></i>
+            </div>
+            <div class="item-details">
+              <h5>Main Polygon</h5>
+              <p class="coordinates">{{ polygonPath.length }} points</p>
+              <p class="area" v-if="polygonArea">Area: {{ polygonArea }} m²</p>
+            </div>
           </div>
-          
-          <div v-if="polygon" class="sidebar-item polygon-item">
-            <div class="item-info">
-              <div class="item-icon">
-                <i class="fas fa-project-diagram"></i>
-              </div>
-              <div class="item-details">
-                <h5>Main Polygon</h5>
-                <p class="coordinates">{{ polygonPath.length }} points</p>
-                <p class="area" v-if="polygonArea">Area: {{ polygonArea }} m²</p>
-              </div>
-            </div>
-            <div class="item-actions">
-              <button @click="focusOnPolygon()" class="btn-action btn-focus" title="Focus on map">
-                <i class="fas fa-eye"></i>
-              </button>
-              <button @click="editPolygon()" class="btn-action btn-edit" title="Edit">
-                <i class="fas fa-edit"></i>
-              </button>
-              <button @click="deletePolygon()" class="btn-action btn-delete" title="Delete">
-                <i class="fas fa-trash"></i>
-              </button>
-            </div>
+          <div class="item-actions">
+            <button @click="focusOnPolygon()" class="btn-action btn-focus" title="Focus on map">
+              <i class="fas fa-eye"></i>
+            </button>
+            <button @click="editPolygon()" class="btn-action btn-edit" title="Edit">
+              <i class="fas fa-edit"></i>
+            </button>
+            <button @click="deletePolygon()" class="btn-action btn-delete" title="Delete">
+              <i class="fas fa-trash"></i>
+            </button>
           </div>
         </div>
       </div>
@@ -489,16 +484,51 @@ export default {
     },
 
     // Save individual placemark
-    async savePlacemark(lat, lng, name = '', description = '') {
-        const result = await this.apiCall('/backend/api/placemark/create.php', 'POST', {
-        lat: lat,
-        lng: lng,
-        name: name || `Marker ${Date.now()}`,
-        description: description
+    async savePlacemark(lat, lng, name = '', description = '', alamat = '', kelurahan = '', kecamatan = '', kota = '', provinsi = '') {
+      const projectId = this.currentProjectId || this.$route.params.id;
+      if (!projectId) {
+        console.error("Project ID tidak ditemukan!");
+        return;
+      }
+
+      const result = await this.apiCall('/backend/api/placemark/create.php', 'POST', {
+        id_project: projectId,
+        latitude: lat,
+        longitude: lng,
+        nama_placemark: name && name.trim() !== '' ? name : `Marker ${Date.now()}`,
+        deskripsi: description || 'Auto generated placemark',
+        alamat,
+        kelurahan,
+        kecamatan,
+        kota,
+        provinsi
       });
-      
+
       if (result.success) {
         console.log('Placemark saved:', result.data);
+
+        // Pastikan array placemarks ada
+        if (!this.currentProject.placemarks) {
+          this.currentProject.placemarks = [];
+        }
+
+        // Tambah langsung ke array biar sidebar update otomatis
+        this.currentProject.placemarks.push({
+          id_placemark: result.data.id_placemark, // ambil dari backend RETURNING
+          nama_placemark: result.data.nama_placemark,
+          deskripsi: result.data.deskripsi,
+          latitude: result.data.latitude,
+          longitude: result.data.longitude,
+          alamat: result.data.alamat || '',
+          rt: result.data.rt || '',
+          rw: result.data.rw || '',
+          kelurahan: result.data.kelurahan || '',
+          kecamatan: result.data.kecamatan || '',
+          kota: result.data.kota || '',
+          provinsi: result.data.provinsi || ''
+        });
+      } else {
+        console.error('Save placemark failed:', result.message);
       }
     },
 
@@ -517,13 +547,16 @@ export default {
     // Save individual polygon
     async savePolygon(coordinates, name = '', description = '') {
       const result = await this.apiCall('/backend/api/polygon/create.php', 'POST', {
-        coordinates: coordinates,
-        name: name || `Polygon ${Date.now()}`,
-        description: description
+        id_project: this.currentProjectId,
+        coordinate: coordinates,
+        nama_polygon: name || `Polygon ${Date.now()}`,
+        deskripsi: description
       });
       
       if (result.success) {
         console.log('Polygon saved:', result.data);
+      } else {
+        console.error('Polygon save failed:', result.message);
       }
     },
 
@@ -564,57 +597,90 @@ export default {
 
       this.markers.push(marker);
 
-      // Save to backend if requested
       if (save) {
-        // Add to placemarks array for new markers
-        this.placemarks.push({ lat, lng });
-        this.savePlacemark(lat, lng);
+        const geocoder = new google.maps.Geocoder();
+        geocoder.geocode({ location: { lat, lng } }, (results, status) => {
+          if (status === "OK" && results[0]) {
+            const alamat = results[0].formatted_address;
+
+            // 🔹 Pecah address_components
+            const components = results[0].address_components;
+            let kelurahan = '', kecamatan = '', kota = '', provinsi = '';
+
+            components.forEach(c => {
+              if (c.types.includes("administrative_area_level_4")) kelurahan = c.long_name;
+              if (c.types.includes("administrative_area_level_3")) kecamatan = c.long_name;
+              if (c.types.includes("administrative_area_level_2")) kota = c.long_name;
+              if (c.types.includes("administrative_area_level_1")) provinsi = c.long_name;
+            });
+
+            this.savePlacemark(lat, lng, '', '', alamat, kelurahan, kecamatan, kota, provinsi);
+          } else {
+            this.savePlacemark(lat, lng);
+          }
+        });
       }
 
       console.log('Marker added successfully. Total markers:', this.markers.length);
     },
 
-    loadPolygonToMap(coordinates) {
-      if (!this.map) {
-        console.error('Map not initialized');
-        return;
-      }
+    loadPolygonToMap(coordinates, mode = "view") {
+  if (!this.map) {
+    console.error("Map not initialized");
+    return;
+  }
 
-      console.log('Loading polygon with coordinates:', coordinates);
+  // bersihin dulu
+  if (this.polyline) {
+    this.polyline.setMap(null);
+    this.polyline = null;
+  }
+  if (this.polygon) {
+    this.polygon.setMap(null);
+    this.polygon = null;
+  }
 
-      this.polygon = new google.maps.Polygon({
-        paths: coordinates,
-        strokeColor: "#FFD700",
-        strokeOpacity: 1.0,
-        strokeWeight: 4,
-        fillColor: "transparent",
-        fillOpacity: 0,
-        editable: false,
-        draggable: false,
-        clickable: true
-      });
-      
-      this.polygon.setMap(this.map);
-      this.polygonPath = coordinates;
-      
-      // Add event listeners
-      this.polygon.addListener('click', () => {
-        this.polygon.setOptions({
-          fillOpacity: 0.2,
-          strokeWeight: 6
-        });
-      });
+  if (mode === "view") {
+    // View = Polyline (tidak ada garis penutup)
+    let openPath = [...coordinates];
+    // buang titik terakhir kalau sama dengan titik awal
+    if (
+      openPath.length > 2 &&
+      openPath[0].lat === openPath[openPath.length - 1].lat &&
+      openPath[0].lng === openPath[openPath.length - 1].lng
+    ) {
+      openPath.pop();
+    }
 
-      this.polygon.getPath().addListener('set_at', () => {
-        this.updatePolygonPath();
-      });
-
-      this.polygon.getPath().addListener('insert_at', () => {
-        this.updatePolygonPath();
-      });
-
-      console.log('Polygon loaded successfully');
-    },
+    this.polyline = new google.maps.Polyline({
+      path: openPath,
+      strokeColor: "#FF0000",
+      strokeOpacity: 1.0,
+      strokeWeight: 4,
+      editable: false,
+      draggable: false,
+    });
+    this.polyline.setMap(this.map);
+    this.polygonPath = openPath;
+    console.log("Polyline loaded (VIEW mode, no closing line).");
+  } else {
+    // Edit = Polygon (tertutup otomatis)
+    this.polygon = new google.maps.Polygon({
+      paths: coordinates,
+      strokeColor: "#FF0000",
+      strokeOpacity: 1.0,
+      strokeWeight: 4,
+      fillColor: "transparent",
+      fillOpacity: 0,
+      editable: true,
+      draggable: false,
+      clickable: true,
+    });
+    this.polygon.setMap(this.map);
+    this.polygonPath = coordinates;
+    console.log("Polygon loaded (EDIT mode, closed shape).");
+  }
+},
 
     clearAllMapData() {
       // Clear markers
@@ -834,13 +900,13 @@ export default {
         this.polyline = null;
       }
 
-      this.polygon = new google.maps.Polygon({
+      this.polygon = new google.maps.Polyline({
         paths: this.polygonPath,
-        strokeColor: "#FFD700",      // Kuning seperti garis
-        strokeOpacity: 1.0,          // Solid
-        strokeWeight: 4,             // Agak tebal
-        fillColor: "transparent",    // Isian transparan
-        fillOpacity: 0,              // TIDAK ada isian sama sekali
+        strokeColor: "#FF0000",      
+        strokeOpacity: 1.0,          
+        strokeWeight: 4,             
+        fillColor: "transparent",    
+        fillOpacity: 0,              
         editable: false,
         draggable: false,
         clickable: true
@@ -1072,24 +1138,59 @@ export default {
     },
 
     // Edit placemark
-    editPlacemark(index) {
+    async editPlacemark(index) {
       if (!this.currentProject || !this.currentProject.placemarks) {
         console.warn("⚠️ Tidak ada project/placemark yang bisa diedit");
         return;
       }
 
       const placemark = this.currentProject.placemarks[index];
-
       if (!placemark) {
         console.warn("⚠️ Placemark dengan index", index, "tidak ditemukan");
         return;
       }
 
-      // kalau field name kosong, fallback ke string default
-      const newName = prompt("Edit placemark name:", placemark.name || `Placemark ${index + 1}`);
+      const newName = prompt(
+        "Edit placemark name:",
+        placemark.nama_placemark || `Placemark ${index + 1}`
+      );
+
       if (newName && newName.trim() !== "") {
-        placemark.name = newName.trim();
-        console.log("✅ Placemark updated:", placemark);
+        try {
+          console.log("Edit placemark data yang dikirim:", {
+            id_placemark: placemark.id_placemark,
+            nama_placemark: newName.trim(),
+          });
+
+          // 🔽 disini ganti fetch lamamu dengan yang ini
+          const response = await fetch("http://localhost/project_map/backend/api/placemark/update.php", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              id_placemark: placemark.id_placemark,
+              nama_placemark: newName.trim(),
+            }),
+          });
+
+          const text = await response.text();
+          console.log("Raw response backend:", text);
+
+          if (text) {
+            try {
+              const result = JSON.parse(text);
+              if (result.success) {
+                placemark.nama_placemark = newName.trim(); // update local data biar sidebar langsung berubah
+                console.log("✅ Placemark updated:", placemark);
+              } else {
+                alert("❌ Gagal update placemark: " + result.message);
+              }
+            } catch (err) {
+              console.error("❌ Error parsing JSON:", err);
+            }
+          }
+        } catch (err) {
+          console.error("❌ Error update placemark:", err);
+        }
       }
     },
 
@@ -1130,7 +1231,7 @@ export default {
       // Delete from backend
       const projectId = this.$route.params.id || (this.currentProject ? this.currentProject.id_project : null);
       if (projectId) {
-        await this.apiCall(`/backend/api/polygon/delete.php`, 'DELETE', { project_id: projectId });
+        await this.apiCall(`/backend/api/polygon/delete.php`, 'DELETE', { id_project: projectId });
       }
     },
 
@@ -1149,7 +1250,7 @@ export default {
     // Export project data
     exportProjectData() {
       const projectData = {
-        project_id: this.currentProject ? this.currentProject.id_project : null,
+        id_project: this.currentProject ? this.currentProject.id_project : null,
         project_name: this.currentProject ? this.currentProject.nama_project : 'Untitled Project',
         placemarks: this.placemarks,
         polygon: this.polygonPath,
@@ -1161,7 +1262,7 @@ export default {
       const url = URL.createObjectURL(dataBlob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `project_${projectData.project_id || 'export'}_${Date.now()}.json`;
+      link.download = `project_${projectData.id_project || 'export'}_${Date.now()}.json`;
       link.click();
       URL.revokeObjectURL(url);
     }
