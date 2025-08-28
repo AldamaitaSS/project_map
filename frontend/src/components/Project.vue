@@ -625,62 +625,63 @@ export default {
     },
 
     loadPolygonToMap(coordinates, mode = "view") {
-  if (!this.map) {
-    console.error("Map not initialized");
-    return;
-  }
+      if (!this.map) {
+        console.error("Map not initialized");
+        return;
+      }
 
-  // bersihin dulu
-  if (this.polyline) {
-    this.polyline.setMap(null);
-    this.polyline = null;
-  }
-  if (this.polygon) {
-    this.polygon.setMap(null);
-    this.polygon = null;
-  }
+      // Hapus polyline/polygon lama dari map
+      if (this.polyline) {
+        this.polyline.setMap(null);
+        this.polyline = null;
+      }
+      if (this.polygon) {
+        this.polygon.setMap(null);
+        this.polygon = null;
+      }
 
-  if (mode === "view") {
-    // View = Polyline (tidak ada garis penutup)
-    let openPath = [...coordinates];
-    // buang titik terakhir kalau sama dengan titik awal
-    if (
-      openPath.length > 2 &&
-      openPath[0].lat === openPath[openPath.length - 1].lat &&
-      openPath[0].lng === openPath[openPath.length - 1].lng
-    ) {
-      openPath.pop();
-    }
+      if (mode === "view") {
+        // Polyline untuk VIEW
+        let openPath = [...coordinates];
+        if (
+          openPath.length > 2 &&
+          openPath[0].lat === openPath[openPath.length - 1].lat &&
+          openPath[0].lng === openPath[openPath.length - 1].lng
+        ) {
+          openPath.pop();
+        }
 
-    this.polyline = new google.maps.Polyline({
-      path: openPath,
-      strokeColor: "#FF0000",
-      strokeOpacity: 1.0,
-      strokeWeight: 4,
-      editable: false,
-      draggable: false,
-    });
-    this.polyline.setMap(this.map);
-    this.polygonPath = openPath;
-    console.log("Polyline loaded (VIEW mode, no closing line).");
-  } else {
-    // Edit = Polygon (tertutup otomatis)
-    this.polygon = new google.maps.Polygon({
-      paths: coordinates,
-      strokeColor: "#FF0000",
-      strokeOpacity: 1.0,
-      strokeWeight: 4,
-      fillColor: "transparent",
-      fillOpacity: 0,
-      editable: true,
-      draggable: false,
-      clickable: true,
-    });
-    this.polygon.setMap(this.map);
-    this.polygonPath = coordinates;
-    console.log("Polygon loaded (EDIT mode, closed shape).");
-  }
-},
+        this.polyline = new google.maps.Polyline({
+          path: openPath,
+          strokeColor: "#FF0000",
+          strokeOpacity: 1.0,
+          strokeWeight: 4,
+          editable: false,
+          draggable: false,
+        });
+        this.polyline.setMap(this.map);
+        this.polygonPath = openPath;
+
+        console.log("Polyline loaded (VIEW mode, no closing line).");
+      } else {
+        // Polygon untuk EDIT
+        this.polygon = new google.maps.Polygon({
+          paths: coordinates,
+          strokeColor: "#FF0000",
+          strokeOpacity: 1.0,
+          strokeWeight: 4,
+          fillColor: "transparent",
+          fillOpacity: 0,
+          editable: true,
+          draggable: false,
+          clickable: true,
+        });
+        this.polygon.setMap(this.map);
+        this.polygonPath = coordinates;
+
+        console.log("Polygon loaded (EDIT mode, closed shape).");
+      }
+    },
 
     clearAllMapData() {
       // Clear markers
@@ -1235,37 +1236,25 @@ export default {
       }
     },
 
-    // Calculate polygon area
     calculatePolygonArea() {
-      if (this.polygon && window.google && google.maps.geometry) {
-        const area = google.maps.geometry.spherical.computeArea(this.polygon.getPath());
-        this.polygonArea = Math.round(area);
-        console.log("✅ Polygon area:", this.polygonArea, "m²");
-      } else {
-        console.warn("⚠️ Geometry library belum siap, coba lagi nanti...");
-        setTimeout(() => this.calculatePolygonArea(), 500);
+      if (!this.polygon || this.polygon.length === 0) {
+        console.warn("Tidak ada polygon untuk dihitung.");
+        return;
       }
-    },
 
-    // Export project data
-    exportProjectData() {
-      const projectData = {
-        id_project: this.currentProject ? this.currentProject.id_project : null,
-        project_name: this.currentProject ? this.currentProject.nama_project : 'Untitled Project',
-        placemarks: this.placemarks,
-        polygon: this.polygonPath,
-        exported_at: new Date().toISOString()
-      };
-      
-      const dataStr = JSON.stringify(projectData, null, 2);
-      const dataBlob = new Blob([dataStr], { type: 'application/json' });
-      const url = URL.createObjectURL(dataBlob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `project_${projectData.id_project || 'export'}_${Date.now()}.json`;
-      link.click();
-      URL.revokeObjectURL(url);
-    }
+      let totalArea = 0;
+
+      this.polygon.forEach(poly => {
+        if (poly && typeof poly.getPath === "function") {
+          const path = poly.getPath();
+          const area = google.maps.geometry.spherical.computeArea(path);
+          totalArea += area;
+        }
+      });
+
+      console.log("Total area semua polygon:", totalArea, "m²");
+      return totalArea;
+    },
   }
 };
 </script>
