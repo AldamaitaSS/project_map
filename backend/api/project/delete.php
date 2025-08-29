@@ -15,15 +15,15 @@ if ($_SERVER['REQUEST_METHOD'] !== 'DELETE') {
 }
 
 $input = json_decode(file_get_contents('php://input'), true);
-$id = intval($input['id'] ?? 0);
+$id_project = intval($input['id_project'] ?? 0);
 
 // Cek juga dari query parameter untuk fleksibilitas
-if ($id <= 0) {
-    $id = intval($_GET['id'] ?? 0);
+if ($id_project <= 0) {
+    $id_project = intval($_GET['id_project'] ?? 0);
 }
 
-if ($id <= 0) {
-    echo json_encode(['success' => false, 'message' => 'ID project tidak valid']);
+if ($id_project <= 0) {
+    echo json_encode(['success' => false, 'message' => 'id_project tidak valid']);
     exit;
 }
 
@@ -38,7 +38,7 @@ if (file_exists($projectsFile)) {
 $found = false;
 $deletedProject = null;
 foreach ($projects as $key => $project) {
-    if ($project['id'] === $id) {
+    if ($project['id_project'] === $id_project) {
         $deletedProject = $project;
         unset($projects[$key]);
         $found = true;
@@ -49,7 +49,7 @@ foreach ($projects as $key => $project) {
 if (!$found) {
     echo json_encode([
         'success' => false, 
-        'message' => 'Project dengan ID ' . $id . ' tidak ditemukan'
+        'message' => 'Project dengan id_project ' . $id_project . ' tid_projectak ditemukan'
     ]);
     exit;
 }
@@ -63,7 +63,7 @@ if (file_put_contents($projectsFile, json_encode($projects, JSON_PRETTY_PRINT)))
         'success' => true,
         'message' => 'Project "' . $deletedProject['name'] . '" berhasil dihapus',
         'deleted_project' => [
-            'id' => $deletedProject['id'],
+            'id_project' => $deletedProject['id_project'],
             'name' => $deletedProject['name'],
             'created_at' => $deletedProject['created_at']
         ],

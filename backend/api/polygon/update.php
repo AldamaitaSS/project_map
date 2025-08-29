@@ -1,7 +1,7 @@
 <?php
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: PUT, OPTIONS');
+header('Access-Control-Allow-Methods: POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
@@ -9,55 +9,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
-if ($_SERVER['REQUEST_METHOD'] !== 'PUT') {
-    echo json_encode(['success' => false, 'message' => 'Method harus PUT']);
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    echo json_encode(['success' => false, 'message' => 'Method harus POST']);
     exit;
 }
 
-$input = json_decode(file_get_contents('php://input'), true);
-$id = intval($input['id'] ?? 0);
+try {
+    $input = json_decode(file_get_contents('php://input'), true);
+    $id_polygon   = intval($input['id_polygon'] ?? 0);
+    $nama_polygon = trim($input['nama_polygon'] ?? '');
 
-if ($id <= 0) {
-    echo json_encode(['success' => false, 'message' => 'ID tidak valid']);
-    exit;
-}
-
-// Load existing polygons
-$polygonsFile = __DIR__ . '/../../data/polygons.json';
-$polygons = [];
-if (file_exists($polygonsFile)) {
-    $polygons = json_decode(file_get_contents($polygonsFile), true) ?? [];
-}
-
-// Find and update polygon
-$found = false;
-foreach ($polygons as &$polygon) {
-    if ($polygon['id'] === $id) {
-        $polygon['name'] = $input['name'] ?? $polygon['name'];
-        $polygon['description'] = $input['description'] ?? $polygon['description'];
-        $polygon['coordinates'] = $input['coordinates'] ?? $polygon['coordinates'];
-        $polygon['color'] = $input['color'] ?? $polygon['color'];
-        $polygon['updated_at'] = date('Y-m-d H:i:s');
-        $found = true;
-        break;
+    if ($id_polygon <= 0 || $nama_polygon === '') {
+        echo json_encode(['success' => false, 'message' => 'ID atau nama tidak valid']);
+        exit;
     }
-}
 
-if (!$found) {
-    echo json_encode(['success' => false, 'message' => 'Polygon tidak ditemukan']);
-    exit;
-}
+    require_once __DIR__ . '/../../config/database.php';
+    require_once __DIR__ . '/../../model/polygon.php';
 
-// Save updated polygons
-if (file_put_contents($polygonsFile, json_encode($polygons, JSON_PRETTY_PRINT))) {
-    echo json_encode([
-        'success' => true,
-        'message' => 'Polygon berhasil diupdate'
-    ]);
-} else {
-    echo json_encode([
-        'success' => false,
-        'message' => 'Gagal menyimpan perubahan'
-    ]);
+    $db = (new Database())->getConnection();
+    $polygon = new polygon($db);
+    $polygon->id_polygon   = $id_polygon;
+    $polygon->nama_polygon = $nama_polygon;
+
+    if ($polygon->update()) {
+        echo json_encode(['success' => true, 'message' => 'Nama polygon berhasil diupdate']);
+    } else {
+        echo json_encode(['success' => false, 'message' => 'polygon tidak ditemukan atau gagal update']);
+    }
+} catch (Throwable $e) {
+    // biar selalu JSON, walaupun ada error fatal
+    echo json_encode(['success' => false, 'message' => 'Server error: '.$e->getMessage()]);
 }
-?>

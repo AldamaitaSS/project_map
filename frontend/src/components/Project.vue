@@ -8,15 +8,15 @@
         <p class="project-id">ID: {{ currentProject ? currentProject.id_project : 'N/A' }}</p>
       </div>
 
-        <div class="sidebar-section">
-        <div class="section-header">
+      <!-- Placemarks Section -->
+      <div class="sidebar-section">
+        <div class="section-header" @click="toggleSection('placemarks')">
           <h4>
             <i class="fas fa-map-marker-alt"></i> 
-            Placemarks ({{ currentProject && currentProject.placemarks ? currentProject.placemarks.length : 0 }})
+            Placemarks ({{ placemarks.length }})
           </h4>
           <button 
             class="btn-toggle" 
-            @click="toggleSection('placemarks')" 
             :class="{ active: showPlacemarks }">
             <i class="fas fa-chevron-down"></i>
           </button>
@@ -24,38 +24,35 @@
         
         <div v-if="showPlacemarks" class="section-content">
           <div 
-            v-if="!currentProject || !currentProject.placemarks || currentProject.placemarks.length === 0" 
+            v-if="placemarks.length === 0" 
             class="empty-message">
             <i class="fas fa-map-marker-alt"></i>
             <p>No placemarks yet</p>
           </div>
           
-          <!-- Scrollable list -->
-          <div class="placemark-list">
+          <div v-if="placemarks.length > 0" class="placemark-list">
             <div 
-              v-for="(placemark, index) in (currentProject && currentProject.placemarks ? currentProject.placemarks : [])" 
-              :key="placemark.id_placemark || index" 
+              v-for="(placemark, index) in placemarks" 
+              :key="index" 
               class="sidebar-item placemark-item">
-
               <div class="item-info">
                 <div class="item-icon">
                   <i class="fas fa-map-marker-alt"></i>
                 </div>
                 <div class="item-details">
-                  <h5>{{ placemark.nama_placemark }}</h5>
-                  <p class="coordinates">
-                    {{ parseFloat(placemark.latitude).toFixed(6) }}, 
-                    {{ parseFloat(placemark.longitude).toFixed(6) }}
-                  </p>
-                  <p class="address" v-if="placemark.alamat">{{ placemark.alamat }}</p>
+                  <h5>Marker {{ index + 1 }}</h5>
+                  <p class="coordinates">{{ placemark.lat.toFixed(6) }}, {{ placemark.lng.toFixed(6) }}</p>
+                  <p class="address" v-if="placemark.address">{{ placemark.address }}</p>
                 </div>
               </div>
-
               <div class="item-actions">
-                <button @click="editPlacemark(index)" class="btn-action btn-edit" title="Edit">
+                <button class="btn-action btn-focus" @click="focusOnPlacemark(index)" title="Focus">
+                  <i class="fas fa-crosshairs"></i>
+                </button>
+                <button class="btn-action btn-edit" @click="editPlacemark(index)" title="Edit">
                   <i class="fas fa-edit"></i>
                 </button>
-                <button @click="deletePlacemark(index)" class="btn-action btn-delete" title="Delete">
+                <button class="btn-action btn-delete" @click="deletePlacemark(index)" title="Delete">
                   <i class="fas fa-trash"></i>
                 </button>
               </div>
@@ -64,40 +61,43 @@
         </div>
       </div>
 
+      <!-- Polygons Section -->
       <div class="sidebar-section">
-        <div class="section-header">
-          <h4><i class="fas fa-project-diagram"></i> Polygons ({{ polygon || polyline ? 1 : 0 }})</h4>
-          <button class="btn-toggle" @click="toggleSection('polygons')" :class="{ active: showPolygons }">
+        <div class="section-header" @click="toggleSection('polygons')">
+          <h4><i class="fas fa-draw-polygon"></i> Polygons ({{ polygons.length }})</h4>
+          <button class="btn-toggle" :class="{ active: showPolygons }">
             <i class="fas fa-chevron-down"></i>
           </button>
         </div>
         
-        <div v-if="!(polygon || polyline)" class="empty-message">
-          <i class="fas fa-project-diagram"></i>
-          <p>No polygon yet</p>
+        <div v-if="polygons.length === 0 && showPolygons" class="empty-message">
+          <i class="fas fa-draw-polygon"></i>
+          <p>No polygons available</p>
         </div>
 
-        <div v-if="polygon || polyline" class="sidebar-item polygon-item">
-          <div class="item-info">
-            <div class="item-icon">
-              <i class="fas fa-project-diagram"></i>
+        <div v-if="showPolygons && polygons.length > 0" class="section-content">
+          <div v-for="(polygonData, index) in polygons" :key="polygonData.id || index" class="sidebar-item polygon-item">
+            <div class="item-info">
+              <div class="item-icon">
+                <i class="fas fa-draw-polygon"></i>
+              </div>
+              <div class="item-details">
+                <h5>{{ polygonData.nama_polygon || `Polygon ${index + 1}` }}</h5>
+                <p class="coordinates">{{ polygonData.coordinates ? polygonData.coordinates.length : 0 }} points</p>
+                <p class="address" v-if="polygonData.deskripsi">{{ polygonData.deskripsi }}</p>
+              </div>
             </div>
-            <div class="item-details">
-              <h5>Main Polygon</h5>
-              <p class="coordinates">{{ polygonPath.length }} points</p>
-              <p class="area" v-if="polygonArea">Area: {{ polygonArea }} m²</p>
+            <div class="item-actions">
+              <button class="btn-action btn-focus" @click="focusOnPolygon(index)" title="Focus">
+                <i class="fas fa-crosshairs"></i>
+              </button>
+              <button class="btn-action btn-edit" @click="editPolygon(index)" title="Edit">
+                <i class="fas fa-edit"></i>
+              </button>
+              <button class="btn-action btn-delete" @click="deletePolygon(index)" title="Delete">
+                <i class="fas fa-trash"></i>
+              </button>
             </div>
-          </div>
-          <div class="item-actions">
-            <button @click="focusOnPolygon()" class="btn-action btn-focus" title="Focus on map">
-              <i class="fas fa-eye"></i>
-            </button>
-            <button @click="editPolygon()" class="btn-action btn-edit" title="Edit">
-              <i class="fas fa-edit"></i>
-            </button>
-            <button @click="deletePolygon()" class="btn-action btn-delete" title="Delete">
-              <i class="fas fa-trash"></i>
-            </button>
           </div>
         </div>
       </div>
@@ -121,15 +121,15 @@
         <div class="search-tools">
           <input
             type="text"
-            ref="searchInput"
+            v-model="searchQuery"
             placeholder="Search Location"
             @keyup.enter="searchLocation"
           />
-          <button class="btn-icon" @click="toggleAddMarker">
+          <button class="btn-icon" @click="toggleAddMarker" :class="{ active: addingMarker }">
             <i class="fas fa-map-marker-alt"></i>
           </button>
           <button class="btn-icon" @click="togglePolygonMode" :class="{ active: drawingPolygon }">
-            <i class="fas fa-project-diagram"></i>
+            <i class="fas fa-draw-polygon"></i>
           </button>
           <button class="btn-icon" @click="clearPolygon" v-if="drawingPolygon || polygon">
             <i class="fas fa-trash"></i> Clear
@@ -195,7 +195,8 @@ export default {
       drawingPolygon: false,
       placemarks: [],
       markers: [],
-      polygon: null,
+      polygons: [], // Changed to array to support multiple polygons
+      polygon: null, // Keep for backward compatibility
       polygonPath: [],
       polygonMarkers: [],
       polyline: null,
@@ -215,7 +216,9 @@ export default {
       // Sidebar states
       showPlacemarks: true,
       showPolygons: true,
-      polygonArea: null
+      polygonArea: null,
+      currentPolygonIndex: -1, // Track which polygon is being edited
+      searchQuery: '' // For search input
     };
   },
   
@@ -425,23 +428,24 @@ export default {
         timestamp: new Date().toISOString()
       };
 
-      // Jika ada polygon, simpan koordinatnya
+      // Jika ada polygon legacy, simpan koordinatnya (backward compatibility)
       if (this.polygon) {
         const polygonCoords = this.polygon.getPath().getArray().map(coord => ({
           lat: coord.lat(),
           lng: coord.lng()
         }));
         dataToSave.polygon = polygonCoords;
-        console.log('Saving polygon with', polygonCoords.length, 'points');
+        console.log('Saving legacy polygon with', polygonCoords.length, 'points');
       }
 
       console.log('Data to save:', dataToSave);
+      console.log(`Project has ${this.polygons.length} polygons stored in database`);
 
       // Gunakan baseUrl yang benar dan endpoint save_project
       const result = await this.apiCall('/backend/api/project/save_project.php', 'POST', dataToSave);
       
       if (result && result.status === 'success') {
-        alert(`Project berhasil disimpan!\nMarkers: ${this.placemarks.length}\nPolygon: ${this.polygon ? 'Yes' : 'No'}`);
+        alert(`Project berhasil disimpan!\nMarkers: ${this.placemarks.length}\nPolygons: ${this.polygons.length}\nLegacy Polygon: ${this.polygon ? 'Yes' : 'No'}`);
         
         // Optional: Update project info
         if (result.data) {
@@ -568,6 +572,47 @@ export default {
       }
     },
 
+    // Load polygons for specific project
+    async loadProjectPolygons(projectId) {
+      if (!projectId) {
+        console.error('Project ID is required for loading polygons');
+        return;
+      }
+
+      const result = await this.apiCall(`/backend/api/polygon/read.php?id_project=${projectId}`);
+      if (result.success && result.data) {
+        this.polygons = result.data.map(polygonData => {
+          // Parse coordinate JSON string if needed
+          let coordinates = [];
+          try {
+            coordinates = typeof polygonData.coordinate === 'string' 
+              ? JSON.parse(polygonData.coordinate) 
+              : polygonData.coordinate || [];
+          } catch (e) {
+            console.error('Error parsing polygon coordinates:', e);
+            coordinates = [];
+          }
+
+          return {
+            id: polygonData.id_polygon,
+            nama_polygon: polygonData.nama_polygon,
+            deskripsi: polygonData.deskripsi,
+            coordinates: coordinates,
+            area: null, // Remove area calculation for polylines
+            googlePolygon: null // Will be set when rendered on map
+          };
+        });
+
+        // Render all polygons on map
+        this.renderAllPolygonsOnMap();
+        
+        console.log(`Loaded ${this.polygons.length} polygons for project ${projectId}`);
+      } else {
+        console.error('Failed to load project polygons:', result.message);
+        this.polygons = [];
+      }
+    },
+
     // =============== MAP HELPER METHODS ===============
     
     addMarkerToMap(lat, lng, save = true) {
@@ -598,10 +643,25 @@ export default {
       this.markers.push(marker);
 
       if (save) {
+        // Add to placemarks array for sidebar display
+        this.placemarks.push({
+          lat: lat,
+          lng: lng,
+          name: `Marker ${this.placemarks.length + 1}`,
+          address: 'Loading address...',
+          id: Date.now()
+        });
+
         const geocoder = new google.maps.Geocoder();
         geocoder.geocode({ location: { lat, lng } }, (results, status) => {
           if (status === "OK" && results[0]) {
             const alamat = results[0].formatted_address;
+            
+            // Update address in placemarks array
+            const placemarkIndex = this.placemarks.length - 1;
+            if (this.placemarks[placemarkIndex]) {
+              this.placemarks[placemarkIndex].address = alamat;
+            }
 
             // 🔹 Pecah address_components
             const components = results[0].address_components;
@@ -692,6 +752,10 @@ export default {
       // Clear polygon
       this.clearPolygon();
       
+      // Clear all multiple polygons
+      this.clearAllPolygonsFromMap();
+      this.polygons = [];
+      
       // Clear search marker
       if (this.searchMarker) {
         this.searchMarker.setMap(null);
@@ -699,6 +763,146 @@ export default {
       }
       
       console.log('All map data cleared');
+    },
+
+    // Render all polygons on map
+    renderAllPolygonsOnMap() {
+      if (!this.map) {
+        console.error('Map not initialized');
+        return;
+      }
+
+      // Clear existing polygons from map
+      this.clearAllPolygonsFromMap();
+
+      // Render each polygon
+      this.polygons.forEach((polygonData, index) => {
+        if (polygonData.coordinates && polygonData.coordinates.length >= 3) {
+          this.renderSinglePolygonOnMap(polygonData, index);
+        }
+      });
+
+      // Adjust map view to show all polygons
+      this.fitMapToAllPolygons();
+    },
+
+    // Render single polygon on map (as open polyline without fill)
+    renderSinglePolygonOnMap(polygonData, index) {
+      if (!this.map || !polygonData.coordinates || polygonData.coordinates.length < 2) {
+        return;
+      }
+
+      // Convert coordinates to Google Maps LatLng objects
+      const path = polygonData.coordinates.map(coord => ({
+        lat: parseFloat(coord.lat),
+        lng: parseFloat(coord.lng)
+      }));
+
+      // Create polyline (open line without fill area) instead of polygon
+      const polyline = new google.maps.Polyline({
+        path: path,
+        strokeColor: this.getPolygonColor(index),
+        strokeOpacity: 0.8,
+        strokeWeight: 3,
+        editable: false,
+        draggable: false
+      });
+
+      polyline.setMap(this.map);
+      
+      // Store reference to Google Maps polyline
+      polygonData.googlePolygon = polyline; // Keep same property name for compatibility
+
+      // Add click listener for polygon info
+      polyline.addListener('click', (event) => {
+        this.showPolygonInfo(polygonData, index, event.latLng);
+      });
+
+      console.log(`Rendered polyline ${index + 1} with ${path.length} points`);
+    },
+
+    // Get different colors for polygons
+    getPolygonColor(index) {
+      const colors = [
+        '#FF0000',
+      ];
+      return colors[index % colors.length];
+    },
+
+    // Show polygon info window
+    showPolygonInfo(polygonData, index, position) {
+      const infoWindow = new google.maps.InfoWindow({
+        content: `
+          <div style="padding: 10px;">
+            <h4>${polygonData.nama_polygon || `Polygon ${index + 1}`}</h4>
+            <p><strong>Points:</strong> ${polygonData.coordinates.length}</p>
+            ${polygonData.area ? `<p><strong>Area:</strong> ${polygonData.area}</p>` : ''}
+            ${polygonData.deskripsi ? `<p><strong>Description:</strong> ${polygonData.deskripsi}</p>` : ''}
+          </div>
+        `,
+        position: position
+      });
+      infoWindow.open(this.map);
+    },
+
+    // Clear all polygons from map
+    clearAllPolygonsFromMap() {
+      this.polygons.forEach(polygonData => {
+        if (polygonData.googlePolygon) {
+          polygonData.googlePolygon.setMap(null);
+          polygonData.googlePolygon = null;
+        }
+      });
+    },
+
+    // Fit map to show all polygons
+    fitMapToAllPolygons() {
+      if (!this.map || this.polygons.length === 0) {
+        return;
+      }
+
+      const bounds = new google.maps.LatLngBounds();
+      let hasValidCoords = false;
+
+      this.polygons.forEach(polygonData => {
+        if (polygonData.coordinates && polygonData.coordinates.length > 0) {
+          polygonData.coordinates.forEach(coord => {
+            bounds.extend(new google.maps.LatLng(
+              parseFloat(coord.lat), 
+              parseFloat(coord.lng)
+            ));
+            hasValidCoords = true;
+          });
+        }
+      });
+
+      if (hasValidCoords) {
+        this.map.fitBounds(bounds);
+        // Prevent too much zoom for single point
+        google.maps.event.addListenerOnce(this.map, 'bounds_changed', () => {
+          if (this.map.getZoom() > 18) {
+            this.map.setZoom(18);
+          }
+        });
+      }
+    },
+
+    // Calculate area from coordinates
+    calculatePolygonAreaFromCoords(coordinates) {
+      if (!coordinates || coordinates.length < 3) {
+        return null;
+      }
+
+      try {
+        const path = coordinates.map(coord => 
+          new google.maps.LatLng(parseFloat(coord.lat), parseFloat(coord.lng))
+        );
+        const area = google.maps.geometry.spherical.computeArea(path);
+        return (area / 1000000).toFixed(2) + ' km²'; // Convert to km²
+      } catch (error) {
+        console.error('Error calculating polygon area:', error);
+        return null;
+      }
     },
 
     initMap() {
@@ -901,36 +1105,54 @@ export default {
         this.polyline = null;
       }
 
-      this.polygon = new google.maps.Polyline({
-        paths: this.polygonPath,
-        strokeColor: "#FF0000",      
-        strokeOpacity: 1.0,          
-        strokeWeight: 4,             
-        fillColor: "transparent",    
-        fillOpacity: 0,              
-        editable: false,
-        draggable: false,
-        clickable: true
-      });
+      // Save polygon to backend first
+      const projectId = this.$route.params.id || (this.currentProject ? this.currentProject.id_project : null);
+      if (!projectId) {
+        alert('Project ID tidak ditemukan');
+        return;
+      }
 
-      this.polygon.getPath().addListener('set_at', () => {
-        this.updatePolygonPath();
-      });
+      try {
+        const result = await this.apiCall('/backend/api/polygon/create.php', 'POST', {
+          id_project: projectId,
+          nama_polygon: `Polygon ${this.polygons.length + 1}`,
+          deskripsi: 'Auto generated polygon',
+          coordinate: JSON.stringify(this.polygonPath)
+        });
 
-      this.polygon.getPath().addListener('insert_at', () => {
-        this.updatePolygonPath();
-      });
+        if (result.success) {
+          // Create local polygon data
+          const newPolygonData = {
+            id: result.data?.id_polygon || Date.now(),
+            nama_polygon: `Polygon ${this.polygons.length + 1}`,
+            deskripsi: 'Auto generated polygon',
+            coordinates: [...this.polygonPath],
+            area: null, // Remove area calculation for polylines
+            googlePolygon: null
+          };
 
-      // Clean up
-      this.polygonMarkers.forEach(circle => circle.setMap(null));
-      this.polygonMarkers = [];
-      this.drawingPolygon = false;
-      this.updateMapCursor();
-      
-      // Save to backend
-      await this.savePolygon(this.polygonPath);
-      
-      console.log('Polygon berhasil dibuat dan disimpan!');
+          // Add to polygons array
+          this.polygons.push(newPolygonData);
+
+          // Render the new polygon on map
+          this.renderSinglePolygonOnMap(newPolygonData, this.polygons.length - 1);
+
+          // Clean up drawing state
+          this.polygonMarkers.forEach(circle => circle.setMap(null));
+          this.polygonMarkers = [];
+          this.polygonPath = [];
+          this.drawingPolygon = false;
+          this.updateMapCursor();
+
+          alert(`Polygon berhasil dibuat dan disimpan! Total polygons: ${this.polygons.length}`);
+          console.log(`Polygon created successfully. Total polygons: ${this.polygons.length}`);
+        } else {
+          alert('Gagal menyimpan polygon: ' + (result.message || 'Unknown error'));
+        }
+      } catch (error) {
+        console.error('Error saving polygon:', error);
+        alert('Error saving polygon');
+      }
     },
 
     updatePolygonPath() {
@@ -1061,38 +1283,100 @@ export default {
       }
     },
 
+    // Focus map on specific placemark
+    focusOnPlacemark(index) {
+      if (this.placemarks[index] && this.map) {
+        const placemark = this.placemarks[index];
+        this.map.setCenter({ lat: placemark.lat, lng: placemark.lng });
+        this.map.setZoom(18);
+        
+        // Highlight the marker temporarily if possible
+        if (this.markers[index]) {
+          // You could add bounce animation here
+          this.markers[index].setAnimation(google.maps.Animation.BOUNCE);
+          setTimeout(() => {
+            if (this.markers[index]) {
+              this.markers[index].setAnimation(null);
+            }
+          }, 2000);
+        }
+      }
+    },
+
+    // Edit placemark
+    async editPlacemark(index) {
+      if (this.placemarks[index]) {
+        const placemark = this.placemarks[index];
+        const newName = prompt('Edit marker name:', placemark.name || `Marker ${index + 1}`);
+        
+        if (newName !== null) {
+          this.placemarks[index].name = newName.trim() || `Marker ${index + 1}`;
+          // TODO: Update in backend if needed
+        }
+      }
+    },
+
+    // Delete placemark
+    async deletePlacemark(index) {
+      if (this.placemarks[index]) {
+        const placemark = this.placemarks[index];
+        if (confirm(`Delete marker "${placemark.name || `Marker ${index + 1}`}"?`)) {
+          // Remove from map
+          if (this.markers[index]) {
+            this.markers[index].setMap(null);
+            this.markers.splice(index, 1);
+          }
+          
+          // Remove from placemarks array
+          this.placemarks.splice(index, 1);
+          
+          // TODO: Delete from backend if needed
+        }
+      }
+    },
+
     // Load project data and populate sidebar
     async loadProjectData(projectId) {
       try {
         console.log("Loading project data for ID:", projectId);
+        this.currentProjectId = projectId;
 
-        // === Ambil project detail (sudah ada placemarks + polygon) ===
+        // Clear existing data
+        this.clearAllMapData();
+
+        // === Load project detail ===
         const projectResult = await this.apiCall(`/backend/api/project/readOne.php?id_project=${projectId}`);
         if (projectResult.success && projectResult.data) {
           this.currentProject = projectResult.data;
           console.log('✅ Project info loaded:', this.currentProject);
 
-          // === Tampilkan placemarks ke map ===
+          // === Load placemarks ===
           if (this.currentProject.placemarks && this.currentProject.placemarks.length > 0) {
+            // Clear existing placemarks
+            this.placemarks = [];
+            
             this.currentProject.placemarks.forEach(pm => {
+              // Add to placemarks array for sidebar display
+              this.placemarks.push({
+                lat: parseFloat(pm.latitude),
+                lng: parseFloat(pm.longitude),
+                name: pm.nama_placemark || 'Marker',
+                address: pm.alamat || '',
+                id: pm.id_placemark
+              });
+              
+              // Add marker to map
               this.addMarkerToMap(parseFloat(pm.latitude), parseFloat(pm.longitude), false);
             });
+            console.log(`✅ Loaded ${this.placemarks.length} placemarks`);
           } else {
+            this.placemarks = [];
             console.log('ℹ️ No placemarks found in this project');
           }
 
-          // === Tampilkan polygon ke map ===
-          if (this.currentProject.polygon && this.currentProject.polygon.coordinate) {
-            try {
-              const coords = JSON.parse(this.currentProject.polygon.coordinate);
-              this.loadPolygonToMap(coords);
-              this.calculatePolygonArea();
-            } catch (e) {
-              console.error("❌ Polygon parse error:", e, this.currentProject.polygon.coordinate);
-            }
-          } else {
-            console.log('ℹ️ No polygon found in this project');
-          }
+          // === Load multiple polygons from database ===
+          await this.loadProjectPolygons(projectId);
+
         } else {
           console.error("❌ Failed to load project detail", projectResult.message);
         }
@@ -1127,9 +1411,35 @@ export default {
       }
     },
 
-    // Focus map on polygon
-    focusOnPolygon() {
-      if (this.polygon && this.map) {
+    // Focus map on polygon (supports both old single polygon and new multiple polygons)
+    focusOnPolygon(index = null) {
+      if (index !== null && this.polygons[index]) {
+        // Focus on specific polygon from multiple polygons
+        const polygonData = this.polygons[index];
+        if (polygonData.coordinates && polygonData.coordinates.length > 0) {
+          const bounds = new google.maps.LatLngBounds();
+          polygonData.coordinates.forEach(coord => {
+            bounds.extend(new google.maps.LatLng(
+              parseFloat(coord.lat), 
+              parseFloat(coord.lng)
+            ));
+          });
+          this.map.fitBounds(bounds);
+          
+          // Highlight the polygon temporarily
+          if (polygonData.googlePolygon) {
+            const originalColor = polygonData.googlePolygon.get('fillColor');
+            polygonData.googlePolygon.setOptions({ fillColor: '#FFD700', fillOpacity: 0.7 });
+            setTimeout(() => {
+              polygonData.googlePolygon.setOptions({ 
+                fillColor: originalColor, 
+                fillOpacity: 0.35 
+              });
+            }, 2000);
+          }
+        }
+      } else if (this.polygon && this.map) {
+        // Legacy: Focus on old single polygon
         const bounds = new google.maps.LatLngBounds();
         this.polygonPath.forEach(point => {
           bounds.extend(new google.maps.LatLng(point.lat, point.lng));
@@ -1223,16 +1533,90 @@ export default {
       }
     },
 
-    // Delete polygon
-    async deletePolygon() {
-      if (!confirm('Delete this polygon?')) return;
-      
-      this.clearPolygon();
-      
-      // Delete from backend
-      const projectId = this.$route.params.id || (this.currentProject ? this.currentProject.id_project : null);
-      if (projectId) {
-        await this.apiCall(`/backend/api/polygon/delete.php`, 'DELETE', { id_project: projectId });
+    // Edit polygon (supports both old single polygon and new multiple polygons)
+    editPolygon(index = null) {
+      if (index !== null && this.polygons[index]) {
+        // Edit specific polygon from multiple polygons
+        const polygonData = this.polygons[index];
+        const newName = prompt('Edit polygon name:', polygonData.nama_polygon || `Polygon ${index + 1}`);
+        const newDescription = prompt('Edit polygon description:', polygonData.deskripsi || '');
+        
+        if (newName !== null) {
+          // Update local data
+          this.polygons[index].nama_polygon = newName.trim() || `Polygon ${index + 1}`;
+          this.polygons[index].deskripsi = newDescription || '';
+          
+          // TODO: Update in backend
+          this.updatePolygonInBackend(polygonData.id, {
+            nama_polygon: this.polygons[index].nama_polygon,
+            deskripsi: this.polygons[index].deskripsi
+          });
+        }
+      } else {
+        // Legacy: Edit old single polygon
+        console.log('Edit mode for legacy polygon not implemented');
+      }
+    },
+
+    // Delete polygon (supports both old single polygon and new multiple polygons)
+    async deletePolygon(index = null) {
+      if (index !== null && this.polygons[index]) {
+        // Delete specific polygon from multiple polygons
+        const polygonData = this.polygons[index];
+        if (!confirm(`Delete polygon "${polygonData.nama_polygon || `Polygon ${index + 1}`}"?`)) return;
+        
+        try {
+          // Remove from backend
+          const result = await this.apiCall('/backend/api/polygon/delete.php', 'DELETE', { 
+            id_polygon: polygonData.id 
+          });
+          
+          if (result.success) {
+            // Remove from map
+            if (polygonData.googlePolygon) {
+              polygonData.googlePolygon.setMap(null);
+            }
+            
+            // Remove from local array
+            this.polygons.splice(index, 1);
+            
+            alert('Polygon deleted successfully!');
+          } else {
+            alert('Failed to delete polygon: ' + (result.message || 'Unknown error'));
+          }
+        } catch (error) {
+          console.error('Error deleting polygon:', error);
+          alert('Error deleting polygon');
+        }
+      } else {
+        // Legacy: Delete old single polygon
+        if (!confirm('Delete this polygon?')) return;
+        
+        this.clearPolygon();
+        
+        // Delete from backend
+        const projectId = this.$route.params.id || (this.currentProject ? this.currentProject.id_project : null);
+        if (projectId) {
+          await this.apiCall(`/backend/api/polygon/delete.php`, 'DELETE', { id_project: projectId });
+        }
+      }
+    },
+
+    // Update polygon in backend
+    async updatePolygonInBackend(polygonId, updateData) {
+      try {
+        const result = await this.apiCall('/backend/api/polygon/update.php', 'PUT', {
+          id_polygon: polygonId,
+          ...updateData
+        });
+        
+        if (result.success) {
+          console.log('Polygon updated in backend successfully');
+        } else {
+          console.error('Failed to update polygon in backend:', result.message);
+        }
+      } catch (error) {
+        console.error('Error updating polygon:', error);
       }
     },
 
